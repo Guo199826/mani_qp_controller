@@ -1,0 +1,7 @@
+<library path="lib/libmani_qp">
+  <class name="mani_qp_controller/MANI_QP_CONTROLLER" type="mani_qp_controller::MANI_QP_CONTROLLER" base_class_type="controller_interface::ControllerBase">
+    <description>
+      manipulability tracking with quadratic programming
+    </description>
+  </class>
+</library>
