@@ -1,4 +1,4 @@
-# mani_qp_controller_franka_ros_package
+# mani_qp_controller
 
 Author: Yu, Guo & Gong, Yuhe
 
