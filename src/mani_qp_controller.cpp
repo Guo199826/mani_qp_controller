@@ -60,21 +60,21 @@ bool ManiQpController::init(hardware_interface::RobotHW* robot_hardware,
   //   return false;
   // }
   
-  // // get robot initial joint positions and velocities
-  // franka_state_interface_ = robot_hardware->get<franka_hw::FrankaStateInterface>();
-  // if (franka_state_interface_ == nullptr) {
-  //   ROS_ERROR("MANI_QP: Could not get state interface from hardware");
-  //   return false;
-  // }
+  // get robot initial joint positions and velocities
+  franka_state_interface_ = robot_hardware->get<franka_hw::FrankaStateInterface>();
+  if (franka_state_interface_ == nullptr) {
+    ROS_ERROR("MANI_QP: Could not get state interface from hardware");
+    return false;
+  }
 
-  // try {
-  //   state_handle_ = std::make_unique<franka_hw::FrankaStateHandle>(
-  //       franka_state_interface_->getHandle(arm_id + "_robot"));
+  try {
+    state_handle_ = std::make_unique<franka_hw::FrankaStateHandle>(
+        franka_state_interface_->getHandle(arm_id + "_robot"));
 
-  // } catch (hardware_interface::HardwareInterfaceException &ex) {
-  //   ROS_ERROR_STREAM("MANI_QP: Exception getting state handle: " << ex.what());
-  //   return false;
-  // }
+  } catch (hardware_interface::HardwareInterfaceException &ex) {
+    ROS_ERROR_STREAM("MANI_QP: Exception getting state handle: " << ex.what());
+    return false;
+  }
    
   // get robot state
   robot_state = state_handle_->getRobotState();
@@ -127,12 +127,12 @@ void ManiQpController::update(const ros::Time& /* time */,
   Eigen::Map<Eigen::Matrix<double, 7, 1>> dq(dq_array.data());
   std::cout<<"Joint current velocity: "<<dq.transpose()<<std::endl;
 
-  Eigen::VectorXd dq_filtered_prev = dq_filtered;
-  dq_filtered = (1. - alpha_dq_filter) * dq_filtered + alpha_dq_filter * dq;
+  // Eigen::VectorXd dq_filtered_prev = dq_filtered;
+  // dq_filtered = (1. - alpha_dq_filter) * dq_filtered + alpha_dq_filter * dq;
 
-  // get joint acceleration
-  Eigen::VectorXd ddq(7);
-  // ddq = (dq_filtered - dq_filtered_prev)/0.001;
+  // // get joint acceleration
+  // Eigen::VectorXd ddq(7);
+  // // ddq = (dq_filtered - dq_filtered_prev)/0.001;
   std::cout<<"pass here----------------.----------"<<std::endl;
   // // qp_controller
   // Eigen::VectorXd dq_mod = qp_controller(q);
@@ -152,8 +152,13 @@ void ManiQpController::update(const ros::Time& /* time */,
   double omega = cycle * omega_max / 2.0 *
                  (1.0 - std::cos(2.0 * M_PI / time_max.toSec() * elapsed_time_.toSec()));
   for (auto joint_handle : velocity_joint_handles_) {
-    joint_handle.setCommand(omega*10);
+    joint_handle.setCommand(1);
+  // for (size_t i = 0; i < 7; ++i) {
+  //   velocity_joint_handles_[i].setCommand(omega);
     std::cout<<"omega: "<<omega<<std::endl;
+    std::array<double, 7> dq_array_ = robot_state.dq;
+    Eigen::Map<Eigen::Matrix<double, 7, 1>> dq_(dq_array.data());
+    std::cout<<"Joint current velocity: "<<dq.transpose()<<std::endl;
   }
 }
 
