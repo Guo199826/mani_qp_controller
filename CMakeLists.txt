@@ -7,6 +7,7 @@ project(mani_qp_controller)
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
+include(${CMAKE_CURRENT_SOURCE_DIR}/dqrobotics_dependencies.cmake)
 find_package(catkin REQUIRED COMPONENTS
   controller_interface
   franka_hw
@@ -20,6 +21,8 @@ find_package(catkin REQUIRED COMPONENTS
 
 find_package(Franka REQUIRED)
 find_package(Eigen3 REQUIRED)
+find_package(osqp REQUIRED)
+find_package(OsqpEigen REQUIRED)
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
@@ -132,11 +135,26 @@ include_directories(
 ## Declare a C++ library
 add_library(${PROJECT_NAME}
   src/mani_qp_controller.cpp
+  src/qp_controller.cpp
+  src/jacobianEst.cpp
+  src/jacobianEstVector.cpp
+  src/geomJac.cpp
+  src/spdToVec.cpp
+  src/FrankaRobot.cpp
+  include/FrankaRobot.h
+  src/manipulabilityJacobian.cpp
+  src/redManipulabilityJacobian.cpp
+  src/logmap.cpp
+  src/tmprod.cpp
+  # include/franka_analytical_ik-main/franka_ik_He.hpp
+  src/dq2tfm.cpp
+  src/readData.cpp
 )
 
 target_link_libraries(${PROJECT_NAME}
   ${catkin_LIBRARIES}
   ${Franka_LIBRARIES}
+  dqrobotics
 )
 
 target_include_directories(${PROJECT_NAME} SYSTEM PUBLIC

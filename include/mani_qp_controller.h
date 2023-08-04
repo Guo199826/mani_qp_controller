@@ -4,6 +4,7 @@
 
 #include <string>
 #include <vector>
+#include <eigen3/Eigen/Dense>
 
 #include <controller_interface/multi_interface_controller.h>
 #include <franka_hw/franka_state_interface.h>
@@ -27,6 +28,13 @@ class JointVelocityExampleController : public controller_interface::MultiInterfa
   hardware_interface::VelocityJointInterface* velocity_joint_interface_;
   std::vector<hardware_interface::JointHandle> velocity_joint_handles_;
   ros::Duration elapsed_time_;
+
+  franka_hw::FrankaStateInterface *franka_state_interface_;
+  franka_hw::FrankaModelInterface *model_interface_;
+  std::unique_ptr<franka_hw::FrankaStateHandle> state_handle_;
+  std::unique_ptr<franka_hw::FrankaModelHandle> model_handle_;
+
+  franka::RobotState robot_state;
 };
 
 }  // namespace franka_example_controllers

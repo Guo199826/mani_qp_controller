@@ -1,20 +1,20 @@
-#include "../include/manipulability_qp_controller.h"
+#include "../include/qp_controller.h"
 
-int main(void)
+VectorXd qp_controller(Matrix<double,7,1> q_)
 {
-    // Input trajectories from file
-    MatrixXd x_d_traj = readDataMatrix("../data/x_traj.txt",3,5);
-    Tensor<double,3> Me_d_traj = readDataTensor("../data/me_traj.txt",6,6,5);
+    // // Input trajectories from file
+    // MatrixXd x_d_traj = readDataMatrix("../data/x_traj.txt",3,5);
+    // Tensor<double,3> Me_d_traj = readDataTensor("../data/me_traj.txt",6,6,5);
     
-    /////////////////////////////////////////////////////////
+    // /////////////////////////////////////////////////////////
 
-    // Initialize V-REP interface
-    DQ_VrepInterface vi;
-    vi.connect(19997,100,10);
-    vi.set_synchronous(true);
-    std::cout << "Starting V-REP simulation..." << std::endl;
-    vi.start_simulation();
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    // // Initialize V-REP interface
+    // DQ_VrepInterface vi;
+    // vi.connect(19997,100,10);
+    // vi.set_synchronous(true);
+    // std::cout << "Starting V-REP simulation..." << std::endl;
+    // vi.start_simulation();
+    // std::this_thread::sleep_for(std::chrono::milliseconds(100));
     std::vector<std::string>jointnames = {"Franka_joint1", "Franka_joint2",
                                            "Franka_joint3", "Franka_joint4",
                                            "Franka_joint5", "Franka_joint6",
@@ -23,20 +23,20 @@ int main(void)
     // Robot definition
     DQ_SerialManipulatorMDH robot = FrankaRobot::kinematics();
     std::shared_ptr<DQ_SerialManipulatorMDH> robot_ptr = std::make_shared<DQ_SerialManipulatorMDH> (robot);
-    DQ_SerialManipulatorMDH robot_ik = FrankaRobot::kinematics();
-    DQ offset_base = 1 + E_ * 0.5 * DQ(0, 0, 0, 0);
-    robot_ik.set_base_frame(offset_base);
-    robot_ik.set_reference_frame(offset_base);
+    // DQ_SerialManipulatorMDH robot_ik = FrankaRobot::kinematics();
+    // DQ offset_base = 1 + E_ * 0.5 * DQ(0, 0, 0, 0);
+    // robot_ik.set_base_frame(offset_base);
+    // robot_ik.set_reference_frame(offset_base);
 
-    DQ base_frame = vi.get_object_pose("Franka_joint1");
-    DQ eef_frame = vi.get_object_pose("Franka_connection");
-    std::cout<<"Originally base frame of robot:.... "<<robot.get_base_frame()<<std::endl;
-    std::cout<<"base frame in Vrep: "<<base_frame<<std::endl;
-    std::cout<<"eef frame in Vrep: "<<eef_frame<<std::endl;
-    robot.set_base_frame(base_frame);
-    robot.set_reference_frame(base_frame);
-    std::cout<<"Now base frame in Vrep:.... "<<robot.get_base_frame()<<std::endl;
-    std::cout<<"Now eef frame in Vrep:.... "<<robot.get_effector()<<std::endl;
+    // DQ base_frame = vi.get_object_pose("Franka_joint1");
+    // DQ eef_frame = vi.get_object_pose("Franka_connection");
+    // std::cout<<"Originally base frame of robot:.... "<<robot.get_base_frame()<<std::endl;
+    // std::cout<<"base frame in Vrep: "<<base_frame<<std::endl;
+    // std::cout<<"eef frame in Vrep: "<<eef_frame<<std::endl;
+    // robot.set_base_frame(base_frame);
+    // robot.set_reference_frame(base_frame);
+    // std::cout<<"Now base frame in Vrep:.... "<<robot.get_base_frame()<<std::endl;
+    // std::cout<<"Now eef frame in Vrep:.... "<<robot.get_effector()<<std::endl;
 
     // Set link number and joint angle
     int n = 7;
@@ -147,7 +147,7 @@ int main(void)
     // Main control loop //////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////////
     for (int i = 0; i<nbIter; i++){
-        VectorXd qt = vi.get_joint_positions(jointnames);
+        VectorXd qt = q_;
         qt_track.col(i) = qt;
         // forward kinematic model
         DQ xt = robot.fkm(qt);
@@ -294,15 +294,4 @@ int main(void)
         
     }
     std::cout << "Control finished..." << std::endl;
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
-    ////////////////////////////////////////////////////////////////////////////////////////////////////
-    
-    // saveDataMatrix("../data/x_traj.txt", x_t_track);
-    // saveDataTensor("../data/me_traj.txt", Me_track);
-    // std::cout<<"Me_track: "<<Me_track<<std::endl;
-
-    std::cout << "Stopping V-REP simulation..." << std::endl;
-    vi.stop_simulation();
-    vi.disconnect();
-    return 0;
 }

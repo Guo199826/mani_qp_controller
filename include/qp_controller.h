@@ -29,7 +29,7 @@ Prerequisites:
 #define MANIPULABILITY_QP_CONTROLLER_H
 #include <iostream>
 // #include <dqrobotics/DQ.h>
-#include <dqrobotics/interfaces/vrep/DQ_VrepInterface.h>
+// #include <dqrobotics/interfaces/vrep/DQ_VrepInterface.h>
 #include "../include/FrankaRobot.h"
 // #include <dqrobotics/robot_modeling/DQ_SerialManipulator.h>
 // #include <dqrobotics/robot_control/DQ_PseudoinverseController.h>
@@ -49,6 +49,6 @@ Prerequisites:
 using namespace Eigen;
 using namespace DQ_robotics;
 
-int main(void);
+VectorXd qp_controller(Matrix<double,7,1> q_)
 
 #endif
