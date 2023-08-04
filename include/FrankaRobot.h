@@ -1,8 +1,11 @@
 #ifndef DQ_ROBOTS_FRANKAROBOT_H
 #define DQ_ROBOTS_FRANKAROBOT_H
-
-#include<dqrobotics/robot_modeling/DQ_SerialManipulatorMDH.h>
-#include<dqrobotics/utils/DQ_Constants.h>
+#include <dqrobotics/DQ.h>
+#include <dqrobotics/robot_modeling/DQ_Kinematics.h>
+#include <dqrobotics/robot_modeling/DQ_SerialManipulator.h>
+// #include <dqrobotics/utils/DQ_Geometry.h>
+#include <dqrobotics/robot_modeling/DQ_SerialManipulatorMDH.h>
+#include <dqrobotics/utils/DQ_Constants.h>
 
 namespace DQ_robotics
 {

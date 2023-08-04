@@ -1,25 +1,12 @@
 // Copyright (c) 2017 Franka Emika GmbH
 // Use of this source code is governed by the Apache-2.0 license, see LICENSE
-#include <mani_qp_controller/mani_qp_controller.h>
-
-#include <array>
-#include <cmath>
-#include <iostream>
-
-#include <ros/ros.h>
-#include <ros/package.h>
-#include <controller_interface/controller_base.h>
-#include <hardware_interface/hardware_interface.h>
-#include <hardware_interface/joint_command_interface.h>
+#include "../include/mani_qp_controller.h"
 #include <pluginlib/class_list_macros.h>
-#include <std_msgs/Float64MultiArray.h>
 
-#include <franka_hw/franka_model_interface.h>
-#include <franka_hw/franka_state_interface.h>
 
-namespace franka_example_controllers {
+namespace mani_qp_controller {
 
-bool JointVelocityExampleController::init(hardware_interface::RobotHW* robot_hardware,
+bool ManiQpController::init(hardware_interface::RobotHW* robot_hardware,
                                           ros::NodeHandle& node_handle) {
   velocity_joint_interface_ = robot_hardware->get<hardware_interface::VelocityJointInterface>();
   if (velocity_joint_interface_ == nullptr) {
@@ -73,21 +60,21 @@ bool JointVelocityExampleController::init(hardware_interface::RobotHW* robot_har
   //   return false;
   // }
   
-  // get robot initial joint positions and velocities
-  franka_state_interface_ = robot_hardware->get<franka_hw::FrankaStateInterface>();
-  if (state_interface == nullptr) {
-    ROS_ERROR("MANI_QP: Could not get state interface from hardware");
-    return false;
-  }
+  // // get robot initial joint positions and velocities
+  // franka_state_interface_ = robot_hardware->get<franka_hw::FrankaStateInterface>();
+  // if (franka_state_interface_ == nullptr) {
+  //   ROS_ERROR("MANI_QP: Could not get state interface from hardware");
+  //   return false;
+  // }
 
-  try {
-    state_handle_ = std::make_unique<franka_hw::FrankaStateHandle>(
-        franka_state_interface_->getHandle(arm_id + "_robot"));
+  // try {
+  //   state_handle_ = std::make_unique<franka_hw::FrankaStateHandle>(
+  //       franka_state_interface_->getHandle(arm_id + "_robot"));
 
-  } catch (hardware_interface::HardwareInterfaceException &ex) {
-    ROS_ERROR_STREAM("MANI_QP: Exception getting state handle: " << ex.what());
-    return false;
-  }
+  // } catch (hardware_interface::HardwareInterfaceException &ex) {
+  //   ROS_ERROR_STREAM("MANI_QP: Exception getting state handle: " << ex.what());
+  //   return false;
+  // }
    
   // get robot state
   robot_state = state_handle_->getRobotState();
@@ -95,60 +82,82 @@ bool JointVelocityExampleController::init(hardware_interface::RobotHW* robot_har
   // get joint position
   std::array<double, 7> q_array = robot_state.q;
   Eigen::Map<Eigen::Matrix<double, 7, 1>> q(q_array.data());
+  std::cout<<"Joint initial position: "<<q.transpose()<<std::endl;
 
   // get joint velocity
   std::array<double, 7> dq_array = robot_state.dq;
   Eigen::Map<Eigen::Matrix<double, 7, 1>> dq(dq_array.data());
+  std::cout<<"Joint initial velocity: "<<dq.transpose()<<std::endl;
+
+  // get end-effector pose in base frame
+  std::array<double,16> O_T_EE_array = robot_state.O_T_EE;
+  Eigen::Map<Eigen::Matrix<double,4,4>> O_T_EE(O_T_EE_array.data());
+  std::cout<<"Joint initial position: "<<std::endl<<O_T_EE<<std::endl;
+
+  // get end-effenctor translation in base frame
+  Eigen::Matrix<double, 3, 1> x_EE_t = O_T_EE.block(0,3,3,1);
+  std::cout<<"Initial eef translational position: "<<x_EE_t.transpose()<<std::endl;
 
   return true;
 }
 
-void JointVelocityExampleController::starting(const ros::Time& /* time */) {
+void ManiQpController::starting(const ros::Time& /* time */) {
   elapsed_time_ = ros::Duration(0.0);
+
+  // // get end effector pose
+  // O_R_EE_init = robot.O_T_EE.block(0, 0, 3, 3);
+  // O_T_EE_init = robot.O_T_EE;
 }
 
-void JointVelocityExampleController::update(const ros::Time& /* time */,
+void ManiQpController::update(const ros::Time& /* time */,
                                             const ros::Duration& period) {
   elapsed_time_ += period;
 
-  double t0 = ros::Time::now().toNSec();
+  // double t0 = ros::Time::now().toNSec();
 
   robot_state = state_handle_->getRobotState();
 
   // get joint position
   std::array<double, 7> q_array = robot_state.q;
   Eigen::Map<Eigen::Matrix<double, 7, 1>> q(q_array.data());
+  std::cout<<"Joint current position: "<<q.transpose()<<std::endl;
 
   // get joint velocity
   std::array<double, 7> dq_array = robot_state.dq;
   Eigen::Map<Eigen::Matrix<double, 7, 1>> dq(dq_array.data());
+  std::cout<<"Joint current velocity: "<<dq.transpose()<<std::endl;
 
   Eigen::VectorXd dq_filtered_prev = dq_filtered;
   dq_filtered = (1. - alpha_dq_filter) * dq_filtered + alpha_dq_filter * dq;
 
   // get joint acceleration
   Eigen::VectorXd ddq(7);
-  ddq = (dq_filtered - dq_filtered_prev)/0.001;
+  // ddq = (dq_filtered - dq_filtered_prev)/0.001;
+  std::cout<<"pass here----------------.----------"<<std::endl;
+  // // qp_controller
+  // Eigen::VectorXd dq_mod = qp_controller(q);
 
-  // qp_controller
+  // // send command to robot
+  // std::cout << "start loop" << std::endl;
+  // for (size_t i = 0; i < 7; ++i) {
+  //   velocity_joint_handles_[i].setCommand(dq_mod(i));
+  //   std::cout<<"command: "<<dq_mod(i)<<std::endl;
+  // }
 
-
-
-  // ros::Duration time_max(8.0);
-  // double omega_max = 0.1;
-  // double cycle = std::floor(
-  //     std::pow(-1.0, (elapsed_time_.toSec() - std::fmod(elapsed_time_.toSec(), time_max.toSec())) /
-  //                        time_max.toSec()));
-  // double omega = cycle * omega_max / 2.0 *
-  //                (1.0 - std::cos(2.0 * M_PI / time_max.toSec() * elapsed_time_.toSec()));
-  std::cout << "start loop" << std::endl;
+  ros::Duration time_max(8.0);
+  double omega_max = 0.1;
+  double cycle = std::floor(
+      std::pow(-1.0, (elapsed_time_.toSec() - std::fmod(elapsed_time_.toSec(), time_max.toSec())) /
+                         time_max.toSec()));
+  double omega = cycle * omega_max / 2.0 *
+                 (1.0 - std::cos(2.0 * M_PI / time_max.toSec() * elapsed_time_.toSec()));
   for (auto joint_handle : velocity_joint_handles_) {
-    joint_handle.setCommand(omega);
-    // std::cout<<"omega: "<<omega<<std::endl;
+    joint_handle.setCommand(omega*10);
+    std::cout<<"omega: "<<omega<<std::endl;
   }
 }
 
-void JointVelocityExampleController::stopping(const ros::Time& /*time*/) {
+void ManiQpController::stopping(const ros::Time& /*time*/) {
   // WARNING: DO NOT SEND ZERO VELOCITIES HERE AS IN CASE OF ABORTING DURING MOTION
   // A JUMP TO ZERO WILL BE COMMANDED PUTTING HIGH LOADS ON THE ROBOT. LET THE DEFAULT
   // BUILT-IN STOPPING BEHAVIOR SLOW DOWN THE ROBOT.
@@ -156,5 +165,5 @@ void JointVelocityExampleController::stopping(const ros::Time& /*time*/) {
 
 }  // namespace franka_example_controllers
 
-PLUGINLIB_EXPORT_CLASS(franka_example_controllers::JointVelocityExampleController,
+PLUGINLIB_EXPORT_CLASS(mani_qp_controller::ManiQpController,
                        controller_interface::ControllerBase)

@@ -9,6 +9,8 @@ project(mani_qp_controller)
 ## is used, also find other catkin packages
 include(${CMAKE_CURRENT_SOURCE_DIR}/dqrobotics_dependencies.cmake)
 find_package(catkin REQUIRED COMPONENTS
+  actionlib
+  actionlib_msgs
   controller_interface
   franka_hw
   geometry_msgs
@@ -23,6 +25,8 @@ find_package(Franka REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(osqp REQUIRED)
 find_package(OsqpEigen REQUIRED)
+# find_package(dqrobotics REQUIRED)
+# find /usr/include/dqrobotics
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
@@ -130,6 +134,9 @@ include_directories(
   include
   ${catkin_INCLUDE_DIRS}
   ${EIGEN3_INCLUDE_DIR}
+  ${osqp_INCLUDE_DIRS}
+  ${OsqpEigen_INCLUDE_DIRS}
+
 )
 
 ## Declare a C++ library
@@ -147,13 +154,15 @@ add_library(${PROJECT_NAME}
   src/logmap.cpp
   src/tmprod.cpp
   # include/franka_analytical_ik-main/franka_ik_He.hpp
-  src/dq2tfm.cpp
+  # src/dq2tfm.cpp
   src/readData.cpp
 )
 
 target_link_libraries(${PROJECT_NAME}
   ${catkin_LIBRARIES}
   ${Franka_LIBRARIES}
+  osqp::osqp
+  OsqpEigen::OsqpEigen
   dqrobotics
 )
 

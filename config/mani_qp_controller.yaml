@@ -1,14 +1,26 @@
-joint_velocity_example_controller:
-    type: franka_example_controllers/JointVelocityExampleController
-    arm_id: $(arg arm_id)
+# joint_velocity_example_controller:
+#     type: franka_example_controllers/JointVelocityExampleController
+#     arm_id: $(arg arm_id)
+#     joint_names:
+#         - $(arg arm_id)_joint1
+#         - $(arg arm_id)_joint2
+#         - $(arg arm_id)_joint3
+#         - $(arg arm_id)_joint4
+#         - $(arg arm_id)_joint5
+#         - $(arg arm_id)_joint6
+#         - $(arg arm_id)_joint7
+mani_qp_controller:
+    type: mani_qp_controller/ManiQpController
+    # arm_id: $(arg arm_id)
+    arm_id: panda
     joint_names:
-        - $(arg arm_id)_joint1
-        - $(arg arm_id)_joint2
-        - $(arg arm_id)_joint3
-        - $(arg arm_id)_joint4
-        - $(arg arm_id)_joint5
-        - $(arg arm_id)_joint6
-        - $(arg arm_id)_joint7
+        - panda_joint1
+        - panda_joint2
+        - panda_joint3
+        - panda_joint4
+        - panda_joint5
+        - panda_joint6
+        - panda_joint7
 
 # joint_position_example_controller:
 #     type: franka_example_controllers/JointPositionExampleController

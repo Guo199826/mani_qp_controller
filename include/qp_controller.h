@@ -25,10 +25,10 @@ Prerequisites:
    (Updated version: vrep_interface_tests/DQRoboticsApiCommandServer.lua)
 3) Compile, run and enjoy!
 */
-#ifndef MANIPULABILITY_QP_CONTROLLER_H
-#define MANIPULABILITY_QP_CONTROLLER_H
+#ifndef QP_CONTROLLER_H
+#define QP_CONTROLLER_H
 #include <iostream>
-// #include <dqrobotics/DQ.h>
+#include <dqrobotics/DQ.h>
 // #include <dqrobotics/interfaces/vrep/DQ_VrepInterface.h>
 #include "../include/FrankaRobot.h"
 // #include <dqrobotics/robot_modeling/DQ_SerialManipulator.h>
@@ -49,6 +49,6 @@ Prerequisites:
 using namespace Eigen;
 using namespace DQ_robotics;
 
-VectorXd qp_controller(Matrix<double,7,1> q_)
+VectorXd qp_controller(Matrix<double,7,1> q_);
 
 #endif

@@ -2,6 +2,9 @@
 
 VectorXd qp_controller(Matrix<double,7,1> q_)
 {
+    VectorXd q_input(7);
+    q_input = q_;
+    std::cout<<"q_initial: "<<std::endl<<q_<<std::endl;
     // // Input trajectories from file
     // MatrixXd x_d_traj = readDataMatrix("../data/x_traj.txt",3,5);
     // Tensor<double,3> Me_d_traj = readDataTensor("../data/me_traj.txt",6,6,5);
@@ -41,11 +44,14 @@ VectorXd qp_controller(Matrix<double,7,1> q_)
     // Set link number and joint angle
     int n = 7;
     int m = 6; // Dimension of workspace
-    VectorXd q_ (n);
+    // VectorXd q_ (n);
     VectorXd q_1 (n);
     q_1 << 1.15192, 0.383972, 0.261799, -1.5708, 0.0, 1.39626, 0.0 ; // validate with q_test in Matlab
     // q_ << -1.98968, -0.383972, -2.87979, -1.5708, 4.20539e-17, 1.39626, 0;
     VectorXd q_goal(n);
+    VectorXd q_add(n);
+    q_add << 0, 0, 0, 0, 0.5, 0.5, 0; 
+    // q_goal = q_input+ q_add;
     q_goal << -pi/2.0, 0.004, 0.0, -1.57156, 0.0, 1.57075, 0.0;
     // q_goal << 0.519784, 0.991963, 1.50832, -1.54527, -1.2189, 0.878087, 0.0;
     // q_ << 0, 0, 0, -1.5708, 0.0, 1.3963, 0.0 ;
@@ -60,15 +66,15 @@ VectorXd qp_controller(Matrix<double,7,1> q_)
     Matrix<double, 7, 1> q_max = robot.get_upper_q_limit();
     // joint acceleration bounds
     Matrix<double, 7, 1> ddq_max;
-    ddq_max.setConstant(500);
+    ddq_max.setConstant(100); // original: 500
     Matrix<double, 7, 1> dq_min_q;
     Matrix<double, 7, 1> dq_max_q;
     Matrix<double, 7, 1> dq_min_ddq;
     Matrix<double, 7, 1> dq_max_ddq;
     
     // // Auxiliar variables
-    double dt = 1E-2;	// Time step
-    int nbIter = 5; // Number of iterations (orig: 65)
+    double dt = 1E-3;	// Time step
+    int nbIter = 1; // Number of iterations (orig: 65)
     int nbData = 1; // no trajectory
     int t_all = nbIter*nbData;
 
@@ -147,7 +153,7 @@ VectorXd qp_controller(Matrix<double,7,1> q_)
     // Main control loop //////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////////
     for (int i = 0; i<nbIter; i++){
-        VectorXd qt = q_;
+        VectorXd qt = q_input;
         qt_track.col(i) = qt;
         // forward kinematic model
         DQ xt = robot.fkm(qt);
@@ -294,4 +300,5 @@ VectorXd qp_controller(Matrix<double,7,1> q_)
         
     }
     std::cout << "Control finished..." << std::endl;
+    return dq_track.col(nbIter-1);
 }

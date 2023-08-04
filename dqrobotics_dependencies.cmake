@@ -2,7 +2,7 @@ if(WIN32)
     set(CMAKE_TOOLCHAIN_FILE C:/vcpkg/scripts/buildsystems/vcpkg.cmake)
 endif()
 
-project(dqrobotics_dependencies)
+project(mani_qp_controller)
 set (CMAKE_CXX_STANDARD 11)
 
 if(UNIX AND NOT APPLE)
