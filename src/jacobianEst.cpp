@@ -1,7 +1,6 @@
 #include "../include/jacobianEst.h"
 
-Tensor<double, 3> jacobianEst(std::function<MatrixXd(const DQ_SerialManipulator&, const MatrixXd &, 
-    const VectorXd&, const int)> fct_geomJac, const VectorXd& q, const int n,
+Tensor<double, 3> jacobianEst(const VectorXd& q, const int n,
     const DQ_SerialManipulator &robot) 
 {
     double q_delta = 0.0001;
@@ -17,13 +16,12 @@ Tensor<double, 3> jacobianEst(std::function<MatrixXd(const DQ_SerialManipulator&
     Matrix<double, 6, 7> J_geom_i;
 
     Tensor<double, 3> JE(6, 7, 7);
-
-    //test:
-    Matrix<double, 8, 7> J;
-    J = robot.pose_jacobian(q);
-    Matrix<double, 6, 7> J_geom;
-    J_geom = fct_geomJac(robot,J,q,n);
-    std::cout<<"J_geom at q: "<<std::endl<<J_geom<<std::endl;
+    // //test:
+    // Matrix<double, 8, 7> J;
+    // J = robot.pose_jacobian(q);
+    // Matrix<double, 6, 7> J_geom;
+    // J_geom = fct_geomJac(robot,J,q,n);
+    // // std::cout<<"J_geom at q: "<<std::endl<<J_geom<<std::endl;
 
     Matrix<double, 6, 7> J_result;
 
@@ -36,8 +34,8 @@ Tensor<double, 3> jacobianEst(std::function<MatrixXd(const DQ_SerialManipulator&
         J_i = robot.pose_jacobian(q_i);
         // std::cout<<"J_ii of "<<i<<std::endl<<J_ii<<std::endl;
         // std::cout<<"J_i: "<<i<<std::endl<<J_i<<std::endl;
-        J_geom_ii = fct_geomJac(robot,J_ii,q_ii,n);
-        J_geom_i = fct_geomJac(robot,J_i,q_i,n);
+        J_geom_ii = geomJac(robot,J_ii,q_ii,n);
+        J_geom_i = geomJac(robot,J_i,q_i,n);
         // std::cout<<"J_geom_ii: "<<i<<std::endl<<J_geom_ii<<std::endl;
         // std::cout<<"J_geom_i: "<<i<<std::endl<<J_geom_i<<std::endl;
 

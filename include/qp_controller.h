@@ -45,6 +45,7 @@ Prerequisites:
 // #include "../include/franka_analytical_ik-main/franka_ik_He.hpp"
 // #include "osqp/osqp.h"
 #include "OsqpEigen/OsqpEigen.h"
+#include <chrono>
 
 using namespace Eigen;
 using namespace DQ_robotics;

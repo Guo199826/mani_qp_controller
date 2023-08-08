@@ -154,8 +154,8 @@ add_library(${PROJECT_NAME}
   src/logmap.cpp
   src/tmprod.cpp
   # include/franka_analytical_ik-main/franka_ik_He.hpp
-  # src/dq2tfm.cpp
-  src/readData.cpp
+  src/dq2tfm.cpp
+  # src/readData.cpp
 )
 
 target_link_libraries(${PROJECT_NAME}

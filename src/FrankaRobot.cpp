@@ -59,7 +59,11 @@ namespace DQ_robotics
 
     DQ FrankaRobot::_get_offset_base()
     {
-        return 1 + E_ * 0.5 * DQ(0, 0.0413, 0, 0);
+        // DQ result(0.006, 0.79, 0.383, 0, 0, 0, 0, 0);
+        // return 1 + E_ * 0.5 * DQ(0, 0.0413, 0, 0);
+        // return 0.006+0.79*i_+ 0.383*j_+0*k_ + E_ * 0.5 * DQ(0, 0, 0, 0);
+        return 1+ E_ * DQ(0, 0, 0, 0);
+
     }
 
     DQ FrankaRobot::_get_offset_flange()
@@ -69,15 +73,21 @@ namespace DQ_robotics
 
     std::tuple<const VectorXd, const VectorXd> FrankaRobot::_get_q_limits()
     {
-        const VectorXd q_max_ = ((VectorXd(7) <<  2.3093, 1.5133, 2.4937, -0.4461, 2.4800, 4.2094,  2.6895).finished());
-        const VectorXd q_min_ = ((VectorXd(7) << -2.3093,-1.5133,-2.4937, -2.7478,-2.4800, 0.8521, -2.6895).finished());
+        // const VectorXd q_max_ = ((VectorXd(7) <<  2.3093, 1.5133, 2.4937, -0.4461, 2.4800, 4.2094,  2.6895).finished());
+        // const VectorXd q_min_ = ((VectorXd(7) << -2.3093,-1.5133,-2.4937, -2.7478,-2.4800, 0.8521, -2.6895).finished());
+        const VectorXd q_max_ = ((VectorXd(7) <<  2.8973, 1.7628, 2.8973, -0.0698, 2.8973, 3.7525,  2.8973).finished());
+        const VectorXd q_min_ = ((VectorXd(7) << -2.8973,-1.7628,-2.8973, -3.0718,-2.8973, -0.0175, -2.8973).finished());
         return std::make_tuple(q_min_, q_max_);
     }
 
     std::tuple<const VectorXd, const VectorXd> FrankaRobot::_get_q_dot_limits()
     {
-        const VectorXd q_min_dot_ = ((VectorXd(7) << -2, -1, -1.5, -1.25, -3, -1.5, -3).finished());
-        const VectorXd q_max_dot_ = ((VectorXd(7) <<  2,  1,  1.5,  1.25,  3,  1.5,  3).finished());
+        // const VectorXd q_min_dot_ = ((VectorXd(7) << -2, -1, -1.5, -1.25, -3, -1.5, -3).finished());
+        const VectorXd q_min_dot_ = ((VectorXd(7) << -2.1750, -2.1750, -2.1750, -2.1750, -2.6100, -2.6100, -2.6100).finished());
+        // const VectorXd q_max_dot_ = ((VectorXd(7) <<  2,  1,  1.5,  1.25,  3,  1.5,  3).finished());
+        const VectorXd q_max_dot_ = ((VectorXd(7) <<  2.1750, 2.1750, 2.1750, 2.1750, 2.6100, 2.6100, 2.6100).finished());
+        
+        
         return std::make_tuple(q_min_dot_, q_max_dot_);
     }
 
