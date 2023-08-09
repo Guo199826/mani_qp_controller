@@ -98,6 +98,9 @@ bool ManiQpController::init(hardware_interface::RobotHW* robot_hardware,
   Eigen::Matrix<double, 3, 1> x_EE_t = O_T_EE.block(0,3,3,1);
   std::cout<<"Initial eef translational position: "<<x_EE_t.transpose()<<std::endl;
 
+  i = 0;
+  counter = 0;
+  
   // Eigen::VectorXd dq_mod = qp_controller(q);
   // std::cout<<"command: "<<dq_mod.transpose()<<std::endl;
   return true;
@@ -105,7 +108,7 @@ bool ManiQpController::init(hardware_interface::RobotHW* robot_hardware,
 
 void ManiQpController::starting(const ros::Time& /* time */) {
   elapsed_time_ = ros::Duration(0.0);
-
+  
   // // get end effector pose
   // O_R_EE_init = robot.O_T_EE.block(0, 0, 3, 3);
   // O_T_EE_init = robot.O_T_EE;
@@ -122,17 +125,22 @@ void ManiQpController::update(const ros::Time& /* time */,
   // get joint position
   std::array<double, 7> q_array = robot_state.q;
   Eigen::Map<Eigen::Matrix<double, 7, 1>> q(q_array.data());
-  // std::cout<<"Joint current position: "<<q.transpose()<<std::endl;
+  
+  q_track.col(i) = q;
+  std::array<double, 6> F_ext_array = robot_state.O_F_ext_hat_K;
+  Eigen::Map<Eigen::Matrix<double, 6, 1>> F_ext(F_ext_array.data());
 
-  // // get joint velocity
-  // std::array<double, 7> dq_array = robot_state.dq;
-  // Eigen::Map<Eigen::Matrix<double, 7, 1>> dq(dq_array.data());
-  // std::cout<<"Joint current velocity: "<<dq.transpose()<<std::endl;
+  // ROS_INFO_STREAM("Joint current position: "<<q.transpose());
 
-  // // get end-effector pose in base frame
-  // std::array<double,16> O_T_EE_array = robot_state.O_T_EE;
-  // Eigen::Map<Eigen::Matrix<double,4,4>> O_T_EE(O_T_EE_array.data());
-  // std::cout<<"Current position: "<<std::endl<<O_T_EE<<std::endl;
+  // get joint velocity
+  std::array<double, 7> dq_array = robot_state.dq;
+  Eigen::Map<Eigen::Matrix<double, 7, 1>> dq(dq_array.data());
+  // ROS_INFO_STREAM("Joint current velocity: "<<dq.transpose());
+
+  // get end-effector pose in base frame
+  std::array<double,16> O_T_EE_array = robot_state.O_T_EE;
+  Eigen::Map<Eigen::Matrix<double,4,4>> O_T_EE(O_T_EE_array.data());
+  // ROS_INFO_STREAM("Current position: \n"<<O_T_EE);
 
   // // get end-effenctor translation in base frame
   // Eigen::Matrix<double, 3, 1> x_EE_t = O_T_EE.block(0,3,3,1);
@@ -146,7 +154,7 @@ void ManiQpController::update(const ros::Time& /* time */,
   // ddq = (dq_filtered - dq_filtered_prev)/0.001;
   // std::cout<<"pass here--------------------------"<<std::endl;
   // qp_controller
-  Eigen::VectorXd dq_mod = qp_controller(q);
+  Eigen::VectorXd dq_mod = qp_controller(q, F_ext,counter);
   // std::cout<<"Mani_command: "<<dq_mod.transpose()<<std::endl;
   // send command to robot
   // std::cout << "start loop" << std::endl;
@@ -157,8 +165,8 @@ void ManiQpController::update(const ros::Time& /* time */,
     // Eigen::Map<Eigen::Matrix<double, 7, 1>> dq_(dq_array_.data());
     // std::cout<<"Joint current velocity: "<<dq_.transpose()<<std::endl;
   }
-  double t1 = ros::Time::now().toSec();
-  // std::cout<<"Update running time: "<<t1-t0<<std::endl;
+  // double t1 = ros::Time::now().toSec();
+  // ROS_INFO_STREAM("Update running time: "<< t1-t0);
   // ros::Duration time_max(8.0);
   // double omega_max = 0.1;
   // double cycle = std::floor(
@@ -175,13 +183,14 @@ void ManiQpController::update(const ros::Time& /* time */,
   //   Eigen::Map<Eigen::Matrix<double, 7, 1>> dq_(dq_array_.data());
     // std::cout<<"Joint current velocity: "<<dq.transpose()<<std::endl;
     // }
-  
+  i++;
 }
 
 void ManiQpController::stopping(const ros::Time& /*time*/) {
   // WARNING: DO NOT SEND ZERO VELOCITIES HERE AS IN CASE OF ABORTING DURING MOTION
   // A JUMP TO ZERO WILL BE COMMANDED PUTTING HIGH LOADS ON THE ROBOT. LET THE DEFAULT
   // BUILT-IN STOPPING BEHAVIOR SLOW DOWN THE ROBOT.
+  std::cout<<"q_track: "<<q_track<<std::endl;
 }
 
 }  // namespace franka_example_controllers

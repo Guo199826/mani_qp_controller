@@ -24,6 +24,8 @@
 #include "../include/qp_controller.h"
 #include <franka_hw/franka_cartesian_command_interface.h>
 
+#include <admittance_controller.h>
+
 // #include <pluginlib/class_list_macros.h>
 #include <std_msgs/Float64MultiArray.h>
 
@@ -38,6 +40,7 @@ namespace mani_qp_controller {
     void update(const ros::Time&, const ros::Duration& period) override;
     void starting(const ros::Time&) override;
     void stopping(const ros::Time&) override;
+    Eigen::Index counter;
 
   private:
     hardware_interface::VelocityJointInterface* velocity_joint_interface_;
@@ -61,6 +64,10 @@ namespace mani_qp_controller {
     Eigen::Matrix<double, 4, 4> O_T_EE_init;
     Eigen::Matrix<double, 3, 3> O_R_EE_init;
 
+    Eigen::MatrixXd q_track;
+    int i;
+    
+    
   };
 
 }  // namespace mani_qp_controller

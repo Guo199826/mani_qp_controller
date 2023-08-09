@@ -83,9 +83,11 @@ namespace DQ_robotics
     std::tuple<const VectorXd, const VectorXd> FrankaRobot::_get_q_dot_limits()
     {
         // const VectorXd q_min_dot_ = ((VectorXd(7) << -2, -1, -1.5, -1.25, -3, -1.5, -3).finished());
-        const VectorXd q_min_dot_ = ((VectorXd(7) << -2.1750, -2.1750, -2.1750, -2.1750, -2.6100, -2.6100, -2.6100).finished());
         // const VectorXd q_max_dot_ = ((VectorXd(7) <<  2,  1,  1.5,  1.25,  3,  1.5,  3).finished());
+        const VectorXd q_min_dot_ = ((VectorXd(7) << -2.1750, -2.1750, -2.1750, -2.1750, -2.6100, -2.6100, -2.6100).finished());
         const VectorXd q_max_dot_ = ((VectorXd(7) <<  2.1750, 2.1750, 2.1750, 2.1750, 2.6100, 2.6100, 2.6100).finished());
+        // const VectorXd q_min_dot_ = ((VectorXd(7) << -0.1, -0.1, -0.1, -0.1, -0.1, -0.1, -0.1).finished());
+        // const VectorXd q_max_dot_ = ((VectorXd(7) <<  0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1).finished());
         
         
         return std::make_tuple(q_min_dot_, q_max_dot_);

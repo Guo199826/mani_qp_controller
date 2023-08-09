@@ -19,6 +19,7 @@ find_package(catkin REQUIRED COMPONENTS
   realtime_tools
   roscpp
   std_msgs
+  admittance_controller
 )
 
 find_package(Franka REQUIRED)

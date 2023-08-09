@@ -36,12 +36,14 @@ Prerequisites:
 #include <thread>
 #include <eigen3/Eigen/Core>
 #include <eigen3/Eigen/Geometry>
+#include <unsupported/Eigen/MatrixFunctions>
 #include "../include/dq2tfm.h"
 #include "../include/logmap.h"
 #include "../include/jacobianEst.h"
 #include "../include/jacobianEstVector.h"
 #include "../include/geomJac.h"
 #include "../include/manipulabilityJacobian.h"
+#include "../include/mani_qp_controller.h"
 // #include "../include/franka_analytical_ik-main/franka_ik_He.hpp"
 // #include "osqp/osqp.h"
 #include "OsqpEigen/OsqpEigen.h"
@@ -50,6 +52,6 @@ Prerequisites:
 using namespace Eigen;
 using namespace DQ_robotics;
 
-VectorXd qp_controller(Matrix<double,7,1> q_);
+VectorXd qp_controller(Matrix<double,7,1> q_, Matrix<double,6,1>  F_ext, Index &conter);
 
 #endif

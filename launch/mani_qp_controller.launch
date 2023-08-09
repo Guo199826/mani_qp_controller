@@ -6,5 +6,8 @@
   <include file="$(find franka_control)/launch/franka_control.launch" pass_all_args="true"/>
   <rosparam command="load" file="$(find mani_qp_controller)/config/mani_qp_controller.yaml"/>
   <node name="controller_spawner" pkg="controller_manager" type="spawner" respawn="false" output="screen"  args="mani_qp_controller"/>
+  <node pkg="rqt_plot" name="rqt_plot_position" type="rqt_plot" args="/joint_states/position[0] /joint_states/position[1] /joint_states/position[2]
+  /joint_states/position[3] /joint_states/position[4] /joint_states/position[5] /joint_states/position[6]" />
   <node pkg="rviz" type="rviz" output="screen" name="rviz" args="-d $(find franka_example_controllers)/launch/robot.rviz -f $(arg arm_id)_link0 --splash-screen $(find franka_visualization)/splash.png"/>
+  
 </launch>
