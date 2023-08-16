@@ -5,6 +5,7 @@
   <arg name="robot_ip" default="192.168.3.122" />
   <include file="$(find franka_control)/launch/franka_control.launch" pass_all_args="true"/>
   <rosparam command="load" file="$(find mani_qp_controller)/config/mani_qp_controller.yaml"/>
+  <rosparam command="load" file="$(find mani_qp_controller)/config/collision_behavior.yaml" />
   <node name="controller_spawner" pkg="controller_manager" type="spawner" respawn="false" output="screen"  args="mani_qp_controller"/>
   <node pkg="rqt_plot" name="rqt_plot_position" type="rqt_plot" args="/joint_states/position[0] /joint_states/position[1] /joint_states/position[2]
   /joint_states/position[3] /joint_states/position[4] /joint_states/position[5] /joint_states/position[6]" />

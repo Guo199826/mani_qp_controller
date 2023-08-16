@@ -1,0 +1,6 @@
+franka_control:
+  collision_config:
+    lower_torque_thresholds_nominal: [90.0, 90.0, 90.0, 90.0, 90.0, 90.0, 90.0]
+    upper_torque_thresholds_nominal: [90.0, 90.0, 90.0, 90.0, 90.0, 90.0, 90.0]
+    lower_force_thresholds_nominal: [90.0, 90.0, 90.0, 90.0, 90.0, 90.0]
+    upper_force_thresholds_nominal: [90.0, 90.0, 90.0, 90.0, 90.0, 90.0]

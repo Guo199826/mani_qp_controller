@@ -41,6 +41,7 @@ bool ManiQpController::init(hardware_interface::RobotHW* robot_hardware,
     }
   }
 
+  
   // try {
   //   auto state_handle = state_interface->getHandle(arm_id + "_robot");
 
@@ -64,6 +65,22 @@ bool ManiQpController::init(hardware_interface::RobotHW* robot_hardware,
   franka_state_interface_ = robot_hardware->get<franka_hw::FrankaStateInterface>();
   if (franka_state_interface_ == nullptr) {
     ROS_ERROR("MANI_QP: Could not get state interface from hardware");
+    return false;
+  }
+  
+  auto* model_interface = robot_hardware->get<franka_hw::FrankaModelInterface>();
+  if (model_interface == nullptr) {
+    ROS_ERROR_STREAM(
+        "JointImpedanceExampleController: Error getting model interface from hardware");
+    return false;
+  }
+  try {
+    model_handle_ = std::make_unique<franka_hw::FrankaModelHandle>(
+        model_interface->getHandle(arm_id + "_model"));
+  } catch (hardware_interface::HardwareInterfaceException& ex) {
+    ROS_ERROR_STREAM(
+        "JointImpedanceExampleController: Exception getting model handle from interface: "
+        << ex.what());
     return false;
   }
 
@@ -100,6 +117,7 @@ bool ManiQpController::init(hardware_interface::RobotHW* robot_hardware,
 
   i = 0;
   counter = 0;
+  F_ext_fil_last.setZero();
   
   // Eigen::VectorXd dq_mod = qp_controller(q);
   // std::cout<<"command: "<<dq_mod.transpose()<<std::endl;
@@ -127,8 +145,34 @@ void ManiQpController::update(const ros::Time& /* time */,
   Eigen::Map<Eigen::Matrix<double, 7, 1>> q(q_array.data());
   
   q_track.col(i) = q;
+
+  // get external force & torque
   std::array<double, 6> F_ext_array = robot_state.O_F_ext_hat_K;
-  Eigen::Map<Eigen::Matrix<double, 6, 1>> F_ext(F_ext_array.data());
+  Eigen::Map<Eigen::Matrix<double, 3, 2>> F_ext_6D(F_ext_array.data());
+  Matrix<double, 3, 1> F_ext = F_ext_6D.col(0);
+  Matrix<double, 3, 1> F_ext_fil;
+ 
+
+
+  // ******************* Contributor: Yuhe Gong ******************************
+  // Low Pass Filter
+  // T_s: sampling time = 0.001 
+  double Ts = 0.001;
+  // F_c: cut_off frequency = 1
+  double fc = 1;
+  // a = T_s / (T_s + RC) = 2 * pi * f_c * T_s / (2 * pi * f_c * T_s + 1)
+  double a = 2 * 3.14 * fc * Ts / (2 * 3.14 * fc * Ts + 1);
+  // Low Pass Filter: y_n = a x_n + (1 - a) * y_{n-1} = y_{n-1} + a * (x_n - y_{n-1})
+  if (i == 0){
+    F_ext_fil = F_ext;
+  }
+  else{
+    F_ext_fil = F_ext_fil_last + a * (F_ext - F_ext_fil_last);
+  }
+  F_ext_fil_last = F_ext_fil;
+  // **************************************************************************
+
+
 
   // ROS_INFO_STREAM("Joint current position: "<<q.transpose());
 
@@ -154,7 +198,7 @@ void ManiQpController::update(const ros::Time& /* time */,
   // ddq = (dq_filtered - dq_filtered_prev)/0.001;
   // std::cout<<"pass here--------------------------"<<std::endl;
   // qp_controller
-  Eigen::VectorXd dq_mod = qp_controller(q, F_ext,counter);
+  Eigen::VectorXd dq_mod = qp_controller(q, F_ext_fil, counter);
   // std::cout<<"Mani_command: "<<dq_mod.transpose()<<std::endl;
   // send command to robot
   // std::cout << "start loop" << std::endl;

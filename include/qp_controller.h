@@ -52,6 +52,6 @@ Prerequisites:
 using namespace Eigen;
 using namespace DQ_robotics;
 
-VectorXd qp_controller(Matrix<double,7,1> q_, Matrix<double,6,1>  F_ext, Index &conter);
+VectorXd qp_controller(Matrix<double,7,1> q_, MatrixXd F_ext, Index &conter);
 
 #endif

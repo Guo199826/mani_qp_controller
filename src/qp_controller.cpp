@@ -1,6 +1,6 @@
 #include "../include/qp_controller.h"
 
-VectorXd qp_controller(Matrix<double,7,1> q_, Matrix<double,6,1> F_ext, Index &counter)
+VectorXd qp_controller(Matrix<double,7,1> q_, MatrixXd F_ext, Index &counter)
 {
     using std::chrono::high_resolution_clock;
     using std::chrono::duration;
@@ -62,16 +62,6 @@ VectorXd qp_controller(Matrix<double,7,1> q_, Matrix<double,6,1> F_ext, Index &c
 
     q_goal = q_goal_traj.col(counter);
 
-
-    // **************************************************************************
-    // yuhe
-    
-
-
-
-
-    // **************************************************************************
-
     // q_goal << -pi/2.0, 0.004, 0.0, -1.57156, 0.0, 1.57075, 0.0;
     // q_goal << 0.519784, 0.991963, 1.50832, -1.54527, -1.2189, 0.878087, 0.0;
     // q_ << 0, 0, 0, -1.5708, 0.0, 1.3963, 0.0 ;
@@ -91,6 +81,8 @@ VectorXd qp_controller(Matrix<double,7,1> q_, Matrix<double,6,1> F_ext, Index &c
     Matrix<double, 7, 1> dq_max_q;
     Matrix<double, 7, 1> dq_min_ddq;
     Matrix<double, 7, 1> dq_max_ddq;
+
+    Matrix<double, 3, 1> err_int_;
     
     // // Auxiliar variables
     double dt = 1E-3;	// Time step
@@ -178,9 +170,7 @@ VectorXd qp_controller(Matrix<double,7,1> q_, Matrix<double,6,1> F_ext, Index &c
 
         Vector3d xt_t = xt.translation().vec3();
         x_t_track.col(i) = xt_t;
-        // Compute cartesian velocity dx:
-        Vector3d dxr = (x_t_track.col(0) - xt_t)*(1/dt);
-        // std::cout<<"--------dxr: "<<dxr.transpose()<<std::endl;
+        Vector3d x_goal = x_t_track.col(0);
 
         // Obtain the current analytical Jacobian, geom J and M 
         J = robot.pose_jacobian(qt);
@@ -197,11 +187,31 @@ VectorXd qp_controller(Matrix<double,7,1> q_, Matrix<double,6,1> F_ext, Index &c
         Tensor<double, 3> Me_ct_tensor = TensorMap<Tensor<double, 3>>(Me_ct.data(), 6, 6, 1);
         Me_track.slice(offset, extent) = Me_ct_tensor;
 
+
+
+        // ******************* Contributor: Yuhe Gong ******************************
+        // Admittance Controller
+        // external force threshold
+        double F_ext_threshold = 8;
+        // control law
+        Eigen::Vector3d control_signal; 
+        if ((F_ext.col(0)).norm() > F_ext_threshold ){
+            control_signal = - 0.01* F_ext;
+        }  
+        else {
+            control_signal.setZero();
+        }
+        // eqaulity constraint right part
+        Eigen::Vector3d dxr = control_signal;
+        // **************************************************************************
+
+
+
         // calculate distance between Me_d and Me_ct
         MatrixXd Md = Me_d.pow(-0.5)*Me_ct*Me_d.pow(-0.5);
         MatrixXd Md_log = Md.log();
         double d = Md_log.norm();
-        std::cout<<"Current distance between M: "<<d<<std::endl;
+        // std::cout<<"Current distance between M: "<<d<<std::endl;
         // check whether or not need to change to the next point on trajectory
         if(d<=0.1 && counter<q_goal_traj.cols()-1){
             counter++;
@@ -290,8 +300,6 @@ VectorXd qp_controller(Matrix<double,7,1> q_, Matrix<double,6,1> F_ext, Index &c
 
         Matrix<c_float, 17, 1> lb;
         lb.block(0,0,6,1) = v_max;
-        // lb.block(6,0,3,1) = dxr;
-        lb.block(6,0,3,1).setZero();
 
         // lb.block(9,0,1,1) = M_diff_axis;
         lb.block(9,0,1,1).setZero();
@@ -299,22 +307,42 @@ VectorXd qp_controller(Matrix<double,7,1> q_, Matrix<double,6,1> F_ext, Index &c
         // std::cout<<"lb: "<<lb.transpose()<<std::endl;
         Matrix<c_float, 17, 7> A;
         A.block(0,0,6,7) = ev_diff;
-        // A.block(6,0,3,7) = J_geom_t;
-        A.block(6,0,3,7).setZero();
 
         // A.block(9,0,1,7) = Jm_t_axis;
         A.block(9,0,1,7).setZero();
         A.block(10,0,7,7) = I;
-        // std::cout<<"A: "<<std::endl<<A<<std::endl;
-        A_s = A.sparseView();
+        // std::cout<<"A: "<<std::endl<<A<<std::endl
         Matrix<c_float, 17, 1> ub;
         ub.block(0,0,6,1).setConstant(OsqpEigen::INFTY);
-        // ub.block(6,0,3,1) = dxr;
-        ub.block(6,0,3,1).setZero();
 
         // ub.block(9,0,1,1) = M_diff_axis;
         ub.block(9,0,1,1).setZero();
         ub.block(10,0,7,1) = ub_limits;
+        
+
+
+        // ******************* Contributor: Yuhe Gong ******************************
+        // Tracking Task or Guidance Task
+        bool Tracking = false;
+        bool guidance = true;
+        if (Tracking || guidance){
+            // set the equality constraints: J * \dot{q} = \dot{x}
+            lb.block(6,0,3,1) = dxr; 
+            A.block(6,0,3,7) = J_geom_t;
+            ub.block(6,0,3,1) = dxr;
+            // no human guidance cost
+        }
+        else{
+            // remove the equality constraints
+            lb.block(6,0,3,1).setZero();
+            A.block(6,0,3,7).setZero();
+            ub.block(6,0,3,1).setZero();
+        }
+        // **************************************************************************
+
+
+
+        A_s = A.sparseView();
         
         // std::cout<<"ub: "<<ub.transpose()<<std::endl;
         OsqpEigen::Solver solver;
@@ -324,6 +352,7 @@ VectorXd qp_controller(Matrix<double,7,1> q_, Matrix<double,6,1> F_ext, Index &c
         //eigenvalue (6) + x_t_tracking(3) + aixs tracking(1) + limits(7)
         solver.data()->setNumberOfConstraints(17); 
         solver.data()->setHessianMatrix(H_s);
+        //solver.data()->setHessianMatrix(h_h);
         solver.data()->setGradient(f.transpose());
         solver.data()->setLinearConstraintsMatrix(A_s);
         solver.data()->setLowerBound(lb);
@@ -345,6 +374,6 @@ VectorXd qp_controller(Matrix<double,7,1> q_, Matrix<double,6,1> F_ext, Index &c
     /* Getting number of milliseconds as a double. */
     duration<double, std::milli> ms_double = t2 - t1;
     // std::cout << ms_double.count() << "ms\n";
+  
     return dq_track.col(nbIter-1);
-    
 }

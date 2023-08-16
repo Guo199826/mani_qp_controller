@@ -22,6 +22,11 @@ mani_qp_controller:
         - panda_joint5
         - panda_joint6
         - panda_joint7
+    collision_config:
+        lower_torque_thresholds_nominal: [90.0, 90.0, 90.0, 90.0, 90.0, 90.0, 90.0]
+        upper_torque_thresholds_nominal: [90.0, 90.0, 90.0, 90.0, 90.0, 90.0, 90.0]
+        lower_force_thresholds_nominal: [90.0, 90.0, 90.0, 90.0, 90.0, 90.0]
+        upper_force_thresholds_nominal: [90.0, 90.0, 90.0, 90.0, 90.0, 90.0]
 
 joint_position_example_controller:
     type: franka_example_controllers/JointPositionExampleController
