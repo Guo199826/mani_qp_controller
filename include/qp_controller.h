@@ -53,6 +53,7 @@ using namespace Eigen;
 using namespace DQ_robotics;
 
 VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &dq_, 
-                        const MatrixXd &F_ext, Index &counter, const Matrix<double,7,1> &q_desired);
+                        const MatrixXd &F_ext, Index &counter, const Matrix<double,7,1> &q_desired,
+                        const Matrix<double,3,1> &x_desired);
 
 #endif

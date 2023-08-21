@@ -1,7 +1,8 @@
 #include "../include/qp_controller.h"
 
 VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &dq_, 
-                        const MatrixXd &F_ext, Index &counter, const Matrix<double,7,1> &q_desired)
+                        const MatrixXd &F_ext, Index &counter, const Matrix<double,7,1> &q_desired,
+                        const Matrix<double,3,1> &x_desired)
 {
     using std::chrono::high_resolution_clock;
     using std::chrono::duration;
@@ -19,10 +20,10 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
     // /////////////////////////////////////////////////////////
 
     // std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    std::vector<std::string>jointnames = {"Franka_joint1", "Franka_joint2",
-                                           "Franka_joint3", "Franka_joint4",
-                                           "Franka_joint5", "Franka_joint6",
-                                           "Franka_joint7"};
+    // std::vector<std::string>jointnames = {"Franka_joint1", "Franka_joint2",
+    //                                        "Franka_joint3", "Franka_joint4",
+    //                                        "Franka_joint5", "Franka_joint6",
+    //                                        "Franka_joint7"};
 
     // Robot definition
     DQ_SerialManipulatorMDH robot = FrankaRobot::kinematics();
@@ -172,6 +173,8 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
         // Matrix4d tfm = dq2tfm(xt);
 
         Vector3d xt_t = xt.translation().vec3();
+        // std::cout<<"xt: "<<xt_t<<std::endl;
+
         // x_t_track.col(i) = xt_t;
         // Vector3d x_goal = x_t_track.col(0);
 
@@ -337,9 +340,14 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
         }
         else{
             // remove the equality constraints
-            lb.block(6,0,3,1).setZero();
-            A.block(6,0,3,7).setZero();
-            ub.block(6,0,3,1).setZero();
+            // lb.block(6,0,3,1).setZero();
+            // A.block(6,0,3,7).setZero();
+            // ub.block(6,0,3,1).setZero();
+            dxr = (x_desired - xt_t)*0.5;
+            // dxr <<0,0,0;
+            lb.block(6,0,3,1) = dxr; 
+            A.block(6,0,3,7) = J_geom_t;
+            ub.block(6,0,3,1) = dxr;
         }
         // **************************************************************************
 
