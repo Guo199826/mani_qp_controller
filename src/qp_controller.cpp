@@ -134,9 +134,10 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
     // Initialization dq q_track M ev_diff
     // Vector3d inf_min;
     // inf_min.setConstant(1e-10);
-    MatrixXd qt_track(7,nbIter);
-    MatrixXd dq_track(7,nbIter);
-    MatrixXd x_t_track(3,nbIter);
+    // MatrixXd qt_track(7,nbIter);
+    // MatrixXd dq_track(7,nbIter);
+    // MatrixXd x_t_track(3,nbIter);
+    Matrix<double,7,1> dq_res;
     MatrixXd J;
     MatrixXd J_geom;
     MatrixXd J_geom_t;
@@ -163,7 +164,7 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
     /////////////////////////////////////////////////////////////////////////////////////////////////////
     for (int i = 0; i<nbIter; i++){
         VectorXd qt = q_;
-        qt_track.col(i) = qt;
+        // qt_track.col(i) = qt;
         // forward kinematic model
         DQ xt = robot.fkm(qt);
         //test coordinate with frankaros
@@ -171,8 +172,8 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
         // Matrix4d tfm = dq2tfm(xt);
 
         Vector3d xt_t = xt.translation().vec3();
-        x_t_track.col(i) = xt_t;
-        Vector3d x_goal = x_t_track.col(0);
+        // x_t_track.col(i) = xt_t;
+        // Vector3d x_goal = x_t_track.col(0);
 
         // Obtain the current analytical Jacobian, geom J and M 
         J = robot.pose_jacobian(qt);
@@ -215,15 +216,15 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
         double d = Md_log.norm();
         // std::cout<<"Current distance between M: "<<d<<std::endl;
         // check whether or not need to change to the next point on trajectory
-        if(d<=0.1 && counter<q_goal_traj.cols()-1){
-            counter++;
-            q_goal = q_goal_traj.col(counter);
-            J_goal = robot.pose_jacobian(q_goal);
-            J_geom_goal = geomJac(robot, J_goal, q_goal, n);
-            J_geom_goal_axis = J_geom_goal.row(3); // translation in x as primary tracking object
-            Me_d_axis = J_geom_goal_axis*J_geom_goal_axis.transpose();
-            Me_d = J_geom_goal*J_geom_goal.transpose();
-        }
+        // if(d<=0.1 && counter<q_goal_traj.cols()-1){
+        //     counter++;
+        //     q_goal = q_goal_traj.col(counter);
+        //     J_goal = robot.pose_jacobian(q_goal);
+        //     J_geom_goal = geomJac(robot, J_goal, q_goal, n);
+        //     J_geom_goal_axis = J_geom_goal.row(3); // translation in x as primary tracking object
+        //     Me_d_axis = J_geom_goal_axis*J_geom_goal_axis.transpose();
+        //     Me_d = J_geom_goal*J_geom_goal.transpose();
+        // }
 
         J_grad = jacobianEst(qt, n, robot);
         array<DenseIndex, 3> offset_axis = {3, 0, 0}; // translation in x
@@ -366,16 +367,16 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
         // Eigen::Matrix<c_float, 7, 1> expectedSolution;
         // expectedSolution << 0.3,  0.7;
 
-        dq_track.col(i) = solver.getSolution();
+        dq_res = solver.getSolution();
         // std::cout<<"Solution dq_t: "<<std::endl<<dq_track.col(i).transpose()<<std::endl;
         
     }
     // std::cout << "Control finished..." << std::endl;
-    auto t2 = high_resolution_clock::now();
+    // auto t2 = high_resolution_clock::now();
 
     /* Getting number of milliseconds as a double. */
-    duration<double, std::milli> ms_double = t2 - t1;
+    // duration<double, std::milli> ms_double = t2 - t1;
     // std::cout << ms_double.count() << "ms\n";
   
-    return dq_track.col(nbIter-1);
+    return dq_res;
 }

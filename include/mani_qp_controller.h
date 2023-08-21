@@ -65,7 +65,7 @@ namespace mani_qp_controller {
     Eigen::Matrix<double, 3, 3> O_R_EE_init;
 
     Eigen::MatrixXd q_track;
-    int i;
+    size_t i;
     Eigen::Matrix<double, 3, 1> F_ext_fil_last;
 
     // matrix in which the data from csv go in

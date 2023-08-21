@@ -144,7 +144,7 @@ void ManiQpController::update(const ros::Time& /* time */,
                                             const ros::Duration& period) {
   elapsed_time_ += period;
 
-  double t0 = ros::Time::now().toSec();
+  // double t0 = ros::Time::now().toSec();
 
   robot_state = state_handle_->getRobotState();
 
@@ -190,8 +190,8 @@ void ManiQpController::update(const ros::Time& /* time */,
   // ROS_INFO_STREAM("Joint current velocity: "<<dq.transpose());
 
   // get end-effector pose in base frame
-  std::array<double,16> O_T_EE_array = robot_state.O_T_EE;
-  Eigen::Map<Eigen::Matrix<double,4,4>> O_T_EE(O_T_EE_array.data());
+  // std::array<double,16> O_T_EE_array = robot_state.O_T_EE;
+  // Eigen::Map<Eigen::Matrix<double,4,4>> O_T_EE(O_T_EE_array.data());
   // ROS_INFO_STREAM("Current position: \n"<<O_T_EE);
 
   // // get end-effenctor translation in base frame
@@ -209,17 +209,17 @@ void ManiQpController::update(const ros::Time& /* time */,
   // Eigen::VectorXd dq_mod = qp_controller(q, F_ext_fil, counter);
 
   Eigen::Matrix<double, 7, 1> q_desired;
-  q_desired << -0.3, -0.5, -0.00208172, -2, -0.00172665, 1.57002, 0.794316;
-  // size_t rosbag_counter = i/70;
-  // std::cout<<"counter: "<<rosbag_counter<<std::endl;
-  // q_desired = joint_states_csv.col(rosbag_counter);
+  // q_desired << -0.3, -0.5, -0.00208172, -2, -0.00172665, 1.57002, 0.794316;
+  size_t rosbag_counter = i/70;
+  std::cout<<"counter: "<<rosbag_counter<<std::endl;
+  q_desired = joint_states_csv.col(rosbag_counter);
   // std::cout<<"q_desired: "<<q_desired.transpose()<<std::endl;
   Eigen::VectorXd dq_mod = qp_controller(q, dq, F_ext_fil, counter, q_desired);
   // std::cout<<"Mani_command: "<<dq_mod.transpose()<<std::endl;
   // send command to robot
   // std::cout << "start loop" << std::endl;
-  for (size_t i = 0; i < 7; ++i) {
-    velocity_joint_handles_[i].setCommand(dq_mod(i));
+  for (size_t i_ = 0; i_ < 7; ++i_) {
+    velocity_joint_handles_[i_].setCommand(dq_mod(i_));
     
     // std::array<double, 7> dq_array_ = robot_state.dq;
     // Eigen::Map<Eigen::Matrix<double, 7, 1>> dq_(dq_array_.data());
