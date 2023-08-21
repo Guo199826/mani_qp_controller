@@ -118,7 +118,15 @@ bool ManiQpController::init(hardware_interface::RobotHW* robot_hardware,
   i = 0;
   counter = 0;
   F_ext_fil_last.setZero();
-  
+
+  // get joint angle trajectory from csv
+  joint_states_csv_ = load_csv("/home/gari/mani_qp_ws_for_traj/data/bags/joint_position.csv");
+  joint_states_csv = joint_states_csv_;
+  std::cout<<"CSV file converted into Eigen::Matrix"<<std::endl;
+  std::cout<<"Matrix: \n"<<joint_states_csv.col(0).transpose()<<std::endl;
+  std::cout<<"Matrix: \n"<<joint_states_csv.col(1).transpose()<<std::endl;
+  std::cout<<"Matrix: \n"<<joint_states_csv.col(2).transpose()<<std::endl;
+
   // Eigen::VectorXd dq_mod = qp_controller(q);
   // std::cout<<"command: "<<dq_mod.transpose()<<std::endl;
   return true;
@@ -198,7 +206,15 @@ void ManiQpController::update(const ros::Time& /* time */,
   // ddq = (dq_filtered - dq_filtered_prev)/0.001;
   // std::cout<<"pass here--------------------------"<<std::endl;
   // qp_controller
-  Eigen::VectorXd dq_mod = qp_controller(q, F_ext_fil, counter);
+  // Eigen::VectorXd dq_mod = qp_controller(q, F_ext_fil, counter);
+
+  Eigen::Matrix<double, 7, 1> q_desired;
+  q_desired << -0.3, -0.5, -0.00208172, -2, -0.00172665, 1.57002, 0.794316;
+  // size_t rosbag_counter = i/70;
+  // std::cout<<"counter: "<<rosbag_counter<<std::endl;
+  // q_desired = joint_states_csv.col(rosbag_counter);
+  // std::cout<<"q_desired: "<<q_desired.transpose()<<std::endl;
+  Eigen::VectorXd dq_mod = qp_controller(q, dq, F_ext_fil, counter, q_desired);
   // std::cout<<"Mani_command: "<<dq_mod.transpose()<<std::endl;
   // send command to robot
   // std::cout << "start loop" << std::endl;

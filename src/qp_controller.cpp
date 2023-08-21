@@ -1,6 +1,7 @@
 #include "../include/qp_controller.h"
 
-VectorXd qp_controller(Matrix<double,7,1> q_, MatrixXd F_ext, Index &counter)
+VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &dq_, 
+                        const MatrixXd &F_ext, Index &counter, const Matrix<double,7,1> &q_desired)
 {
     using std::chrono::high_resolution_clock;
     using std::chrono::duration;
@@ -60,7 +61,8 @@ VectorXd qp_controller(Matrix<double,7,1> q_, MatrixXd F_ext, Index &counter)
     q_goal_traj.col(1)<<0.3, -0.787773, -0.5, -2.3583, 0.5, 1.57543, 0.0;
     q_goal_traj.col(2)<<0.3, -0.787773, -0.5, -2.3583, 0.9, 1.57543, 0.0;
 
-    q_goal = q_goal_traj.col(counter);
+    // q_goal = q_goal_traj.col(counter);
+    q_goal = q_desired;
 
     // q_goal << -pi/2.0, 0.004, 0.0, -1.57156, 0.0, 1.57075, 0.0;
     // q_goal << 0.519784, 0.991963, 1.50832, -1.54527, -1.2189, 0.878087, 0.0;
@@ -277,8 +279,8 @@ VectorXd qp_controller(Matrix<double,7,1> q_, MatrixXd F_ext, Index &counter)
             dq_max_ddq = ddq_max*2;
         }
         else {
-            dq_min_ddq = dq_track.col(i-1) - ddq_max * dt ;
-            dq_max_ddq = dq_track.col(i-1) + ddq_max * dt ;
+            dq_min_ddq = dq_ - ddq_max * dt ;
+            dq_max_ddq = dq_ + ddq_max * dt ;
         }
         Matrix<double, 7, 3> M_lb;
         Matrix<double, 7, 3> M_ub;
@@ -324,7 +326,7 @@ VectorXd qp_controller(Matrix<double,7,1> q_, MatrixXd F_ext, Index &counter)
         // ******************* Contributor: Yuhe Gong ******************************
         // Tracking Task or Guidance Task
         bool Tracking = false;
-        bool guidance = true;
+        bool guidance = false;
         if (Tracking || guidance){
             // set the equality constraints: J * \dot{q} = \dot{x}
             lb.block(6,0,3,1) = dxr; 
