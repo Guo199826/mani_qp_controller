@@ -1,3 +1,5 @@
+
+
 #include "../include/qp_controller.h"
 
 VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &dq_, 
@@ -256,7 +258,7 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
         // ++++++++++++++++++++QP Controller using osqp-eigen+++++++++++++++++++++++++++++++++
         // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
         // constexpr double tolerance = 1e-4;
-        c_float K_qp = 0.5; 
+        c_float K_qp = 1.5; 
         // c_float K_qp = 0.001; 
         Matrix<c_float, 7, 7> H = Jm_t.transpose()*Jm_t;
         H_s = H.sparseView();
@@ -344,7 +346,7 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
             // lb.block(6,0,3,1).setZero();
             // A.block(6,0,3,7).setZero();
             // ub.block(6,0,3,1).setZero();
-            dxr = (x_desired - xt_t);
+            dxr = (x_desired - xt_t)*2;
             // dxr <<0,0,0;
             lb.block(6,0,3,1) = dxr; 
             A.block(6,0,3,7) = J_geom_t;

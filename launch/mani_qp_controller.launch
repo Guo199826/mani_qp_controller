@@ -17,7 +17,7 @@
   if="$(arg rqt_plot)"/>
   <node pkg="rviz" type="rviz" output="screen" name="rviz" args="-d $(find franka_example_controllers)/launch/robot.rviz -f $(arg arm_id)_link0 --splash-screen $(find franka_visualization)/splash.png"
   if="$(arg rviz)" />
-  
+
   <!-- record trajectory -->
   <node pkg="rosbag" type="record" name="rosbag_record_q"
         args="record -O /home/gari/mani_qp_ws_for_traj/src/mani_qp_controller/data/bags/joint_position_traj.bag /franka_state_controller/joint_position"
