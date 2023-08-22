@@ -120,9 +120,9 @@ bool ManiQpController::init(hardware_interface::RobotHW* robot_hardware,
   F_ext_fil_last.setZero();
 
   // get joint angle trajectory from csv
-  joint_states_csv_ = load_csv("/home/gari/mani_qp_ws_for_traj/data/bags/joint_position.csv");
+  joint_states_csv_ = load_csv("/home/gari/mani_qp_ws_for_traj/src/mani_qp_controller/data/bags/joint_position_guid.csv");
   joint_states_csv = joint_states_csv_;
-  size_t col = joint_states_csv_.cols();
+  col = joint_states_csv.cols();
   std::cout<<"CSV file converted into Eigen::Matrix"<<std::endl;
   std::cout<<"Matrix: \n"<<joint_states_csv.col(0).transpose()<<std::endl;
   std::cout<<"Matrix: \n"<<joint_states_csv.col(1).transpose()<<std::endl;
@@ -140,7 +140,7 @@ bool ManiQpController::init(hardware_interface::RobotHW* robot_hardware,
   }
   // x_t_traj = q2x(joint_states_csv_,col);
   // x_t_traj = x_t_traj_;
-  std::cout<<"test x_t_traj: \n"<<x_t_traj.col(511).transpose()<<std::endl;
+  std::cout<<"test x_t_traj: \n"<<x_t_traj.col(994).transpose()<<std::endl;
 
   // Eigen::VectorXd dq_mod = qp_controller(q);
   // std::cout<<"command: "<<dq_mod.transpose()<<std::endl;
@@ -168,7 +168,7 @@ void ManiQpController::update(const ros::Time& /* time */,
   std::array<double, 7> q_array = robot_state.q;
   Eigen::Map<Eigen::Matrix<double, 7, 1>> q(q_array.data());
   
-  q_track.col(i) = q;
+  // q_track.col(i) = q;
 
   // get external force & torque
   std::array<double, 6> F_ext_array = robot_state.O_F_ext_hat_K;
@@ -222,20 +222,21 @@ void ManiQpController::update(const ros::Time& /* time */,
 
   Eigen::Matrix<double, 7, 1> q_desired;
   // q_desired << -0.3, -0.5, -0.00208172, -2, -0.00172665, 1.57002, 0.794316;
-  size_t rosbag_counter = i/70;
+  size_t rosbag_counter = i/10; // 34
   std::cout<<"counter: "<<rosbag_counter<<std::endl;
+  if (rosbag_counter >= col-1){
+    ros::shutdown();
+  }
   q_desired = joint_states_csv.col(rosbag_counter);
   Eigen::Matrix<double, 3, 1> x_desired = x_t_traj.col(rosbag_counter); 
-  // std::cout<<"q_desired: "<<q_desired.transpose()<<std::endl;
+  std::cout<<"q_desired: "<<q_desired.transpose()<<std::endl;
   // std::cout<<"x_desired: "<<x_desired.transpose()<<std::endl;
-
   Eigen::VectorXd dq_mod = qp_controller(q, dq, F_ext_fil, counter, q_desired, x_desired);
   // std::cout<<"Mani_command: "<<dq_mod.transpose()<<std::endl;
   // send command to robot
   // std::cout << "start loop" << std::endl;
   for (size_t i_ = 0; i_ < 7; ++i_) {
     velocity_joint_handles_[i_].setCommand(dq_mod(i_));
-    
     // std::array<double, 7> dq_array_ = robot_state.dq;
     // Eigen::Map<Eigen::Matrix<double, 7, 1>> dq_(dq_array_.data());
     // std::cout<<"Joint current velocity: "<<dq_.transpose()<<std::endl;
@@ -259,13 +260,14 @@ void ManiQpController::update(const ros::Time& /* time */,
     // std::cout<<"Joint current velocity: "<<dq.transpose()<<std::endl;
     // }
   i++;
+  
 }
 
 void ManiQpController::stopping(const ros::Time& /*time*/) {
   // WARNING: DO NOT SEND ZERO VELOCITIES HERE AS IN CASE OF ABORTING DURING MOTION
   // A JUMP TO ZERO WILL BE COMMANDED PUTTING HIGH LOADS ON THE ROBOT. LET THE DEFAULT
   // BUILT-IN STOPPING BEHAVIOR SLOW DOWN THE ROBOT.
-  std::cout<<"q_track: "<<q_track<<std::endl;
+  std::cout<<"Stopping() running... "<<std::endl;
 }
 
 }  // namespace franka_example_controllers
