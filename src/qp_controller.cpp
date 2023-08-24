@@ -64,8 +64,8 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
     q_goal_traj.col(1)<<0.3, -0.787773, -0.5, -2.3583, 0.5, 1.57543, 0.0;
     q_goal_traj.col(2)<<0.3, -0.787773, -0.5, -2.3583, 0.9, 1.57543, 0.0;
 
-    q_goal = q_goal_traj.col(counter);
-    // q_goal = q_desired;
+    // q_goal = q_goal_traj.col(counter);
+    q_goal = q_desired;
 
     // q_goal << -pi/2.0, 0.004, 0.0, -1.57156, 0.0, 1.57075, 0.0;
     // q_goal << 0.519784, 0.991963, 1.50832, -1.54527, -1.2189, 0.878087, 0.0;
@@ -258,7 +258,7 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
         // ++++++++++++++++++++QP Controller using osqp-eigen+++++++++++++++++++++++++++++++++
         // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
         // constexpr double tolerance = 1e-4;
-        c_float K_qp = 1.5; 
+        c_float K_qp = 0.3; 
         // c_float K_qp = 0.001; 
         Matrix<c_float, 7, 7> H = Jm_t.transpose()*Jm_t;
         H_s = H.sparseView();
