@@ -23,7 +23,7 @@
 #include <ros/time.h>
 #include "../include/qp_controller.h"
 #include "convert_csv2matrix.h"
-#include "q2x.h"
+// #include "q2x.h"
 #include <franka_hw/franka_cartesian_command_interface.h>
 
 // #include <pluginlib/class_list_macros.h>
@@ -71,9 +71,7 @@ namespace mani_qp_controller {
 
     // matrix in which the data from csv go in
     Eigen::MatrixXd joint_states_csv_;
-    Eigen::Matrix<double,7,994> joint_states_csv;
     Eigen::MatrixXd x_t_traj_;
-    Eigen::Matrix<double,3,994> x_t_traj;
     size_t col;
     // Matrix<double,7,1> q_desired;
 

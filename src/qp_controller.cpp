@@ -1,4 +1,7 @@
-
+// To switch from tracking to guidance:
+// 1. bool guidance = true;
+// 2. K_qp = 0.001;
+// 3. q_goal = one specified config
 
 #include "../include/qp_controller.h"
 
@@ -6,11 +9,26 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
                         const MatrixXd &F_ext, Index &counter, const Matrix<double,7,1> &q_desired,
                         const Matrix<double,3,1> &x_desired)
 {
-    using std::chrono::high_resolution_clock;
-    using std::chrono::duration;
-    using std::chrono::milliseconds;
+    // Change the setting here, to switch between guidance and tracking
+    // tracking
+    bool Tracking = false;
+    bool guidance = false;
+    c_float K_qp = 2; 
+    Matrix<double,7,1> q_goal;
+    q_goal = q_desired;
+    // guidance
+    // bool Tracking = false;
+    // bool guidance = true;
+    // c_float K_qp = 0.001;
+    // Matrix<double,7,1> q_goal;
+    // q_goal = q_goal_traj.col(counter);
+    ///////////////////////////////////////////////////////////////////
+ 
+    // using std::chrono::high_resolution_clock;
+    // using std::chrono::duration;
+    // using std::chrono::milliseconds;
 
-    auto t1 = high_resolution_clock::now();
+    // auto t1 = high_resolution_clock::now();
 
     // VectorXd q_input(7);
     // q_input = q_;
@@ -52,10 +70,9 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
     // VectorXd q_1 (n);
     // q_1 << 1.15192, 0.383972, 0.261799, -1.5708, 0.0, 1.39626, 0.0 ; // validate with q_test in Matlab
     // q_ << -1.98968, -0.383972, -2.87979, -1.5708, 4.20539e-17, 1.39626, 0;
-    Matrix<double,7,1> q_goal;
-    Matrix<double,7,1> q_add;
+    // Matrix<double,7,1> q_add;
     Matrix<double,7,3> q_goal_traj;
-    q_add << 0, 0, 0, 0, 0.5, 0.5, 0; 
+    // q_add << 0, 0, 0, 0, 0.5, 0.5, 0; 
     // q_goal = q_input+ q_add;
     // q_goal = q_ + q_add;
     // q_goal<<-0.000545241, -0.787773, -0.00212514, -2.3583, 0.5, 1.57543, 0.795024;
@@ -64,9 +81,7 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
     q_goal_traj.col(1)<<0.3, -0.787773, -0.5, -2.3583, 0.5, 1.57543, 0.0;
     q_goal_traj.col(2)<<0.3, -0.787773, -0.5, -2.3583, 0.9, 1.57543, 0.0;
 
-    // q_goal = q_goal_traj.col(counter);
-    q_goal = q_desired;
-
+    
     // q_goal << -pi/2.0, 0.004, 0.0, -1.57156, 0.0, 1.57075, 0.0;
     // q_goal << 0.519784, 0.991963, 1.50832, -1.54527, -1.2189, 0.878087, 0.0;
     // q_ << 0, 0, 0, -1.5708, 0.0, 1.3963, 0.0 ;
@@ -92,8 +107,8 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
     // // Auxiliar variables
     double dt = 1E-3;	// Time step
     int nbIter = 1; // Number of iterations (orig: 65)
-    int nbData = 1; // no trajectory
-    int t_all = nbIter*nbData;
+    // int nbData = 1; // no trajectory
+    // int t_all = nbIter*nbData;
 
     // Desired cartesian and manipulability pos/trajectory
     MatrixXd J_goal;
@@ -216,9 +231,9 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
 
 
         // calculate distance between Me_d and Me_ct
-        MatrixXd Md = Me_d.pow(-0.5)*Me_ct*Me_d.pow(-0.5);
-        MatrixXd Md_log = Md.log();
-        double d = Md_log.norm();
+        // MatrixXd Md = Me_d.pow(-0.5)*Me_ct*Me_d.pow(-0.5);
+        // MatrixXd Md_log = Md.log();
+        // double d = Md_log.norm();
         // std::cout<<"Current distance between M: "<<d<<std::endl;
         // check whether or not need to change to the next point on trajectory
         // if(d<=0.1 && counter<q_goal_traj.cols()-1){
@@ -258,8 +273,6 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
         // ++++++++++++++++++++QP Controller using osqp-eigen+++++++++++++++++++++++++++++++++
         // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
         // constexpr double tolerance = 1e-4;
-        c_float K_qp = 0.3; 
-        // c_float K_qp = 0.001; 
         Matrix<c_float, 7, 7> H = Jm_t.transpose()*Jm_t;
         H_s = H.sparseView();
         // std::cout<<"H: "<<std::endl<<H<<std::endl;
@@ -270,12 +283,12 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
 
         // Constraints:
         // 1. set min. allowed eigenvalue (min. ellipsoid axis length)
-        c_float ev_min_r = 0.05;
-        c_float ev_min_t = 0.01;
+        c_float ev_min_r = 0.5;
+        c_float ev_min_t = 0.1;
         Matrix<c_float, 6,1> ev_min;
         Matrix<c_float, 6,1> v_max;
         ev_min << ev_min_r, ev_min_r, ev_min_r, ev_min_t, ev_min_t, ev_min_t;
-        v_max = (ev_min - ev_t)/dt;
+        v_max = (ev_min - ev_t)*3;
         // Bounds
         // Regarding joint position:
         dq_min_q = (q_min-qt)/dt;
@@ -329,11 +342,9 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
         ub.block(10,0,7,1) = ub_limits;
         
 
-
         // ******************* Contributor: Yuhe Gong ******************************
         // Tracking Task or Guidance Task
-        bool Tracking = false;
-        bool guidance = false;
+        
         if (Tracking || guidance){
             // set the equality constraints: J * \dot{q} = \dot{x}
             lb.block(6,0,3,1) = dxr; 

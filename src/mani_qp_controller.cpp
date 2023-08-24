@@ -120,30 +120,32 @@ bool ManiQpController::init(hardware_interface::RobotHW* robot_hardware,
   F_ext_fil_last.setZero();
 
   // get joint angle trajectory from csv
-  joint_states_csv_ = load_csv("/home/gari/mani_qp_ws_for_traj/src/mani_qp_controller/data/bags/joint_position_guid.csv");
-  joint_states_csv = joint_states_csv_;
-  col = joint_states_csv.cols();
-  std::cout<<"CSV file converted into Eigen::Matrix"<<std::endl;
-  std::cout<<"Matrix: \n"<<joint_states_csv.col(0).transpose()<<std::endl;
-  std::cout<<"Matrix: \n"<<joint_states_csv.col(1).transpose()<<std::endl;
-  std::cout<<"Matrix: \n"<<joint_states_csv.col(2).transpose()<<std::endl;
+  joint_states_csv_ = load_csv("/home/gari/mani_qp_ws_for_traj/src/mani_qp_controller/data/bags/joint_position_guid_sing.csv");
+  // joint_states_csv = joint_states_csv_;
+  std::cout<<"before col...."<<std::endl;
+  col = joint_states_csv_.cols();
+  std::cout<<"col of matrixXd: "<<col<<std::endl;
 
+  // joint_states_csv_.resize(7,col);
+  std::cout<<"CSV file converted into Eigen::Matrix"<<std::endl;
+  std::cout<<"Matrix: \n"<<joint_states_csv_.col(0).transpose()<<std::endl;
+  std::cout<<"Matrix: \n"<<joint_states_csv_.col(1).transpose()<<std::endl;
+  std::cout<<"Matrix: \n"<<joint_states_csv_.col(2).transpose()<<std::endl;
+  
   // q2xt
   DQ_SerialManipulatorMDH robot = FrankaRobot::kinematics();
-  // x_t_traj_(3, col);
+  x_t_traj_.resize(3,col);
   for(size_t i=0; i<col; i++){
-      VectorXd q = joint_states_csv.col(i);
+      Eigen::Matrix<double,7,1> q = joint_states_csv_.col(i);
+      std::cout<<"q assignmnt"<< q <<std::endl;
       // forward kinematic model
       DQ xt = robot.fkm(q);
-      Matrix<double,3,1> xt_t = xt.translation().vec3();
-      x_t_traj.col(i) = xt_t;
+      Eigen::Matrix<double,3,1> xt_t = xt.translation().vec3();
+      x_t_traj_.col(i) = xt_t;
   }
   // x_t_traj = q2x(joint_states_csv_,col);
   // x_t_traj = x_t_traj_;
-  std::cout<<"test x_t_traj: \n"<<x_t_traj.col(994).transpose()<<std::endl;
-
-  // Eigen::VectorXd dq_mod = qp_controller(q);
-  // std::cout<<"command: "<<dq_mod.transpose()<<std::endl;
+  std::cout<<"test x_t_traj: \n"<<x_t_traj_.col(col-1).transpose()<<std::endl;
   return true;
 }
 
@@ -227,8 +229,8 @@ void ManiQpController::update(const ros::Time& /* time */,
   if (rosbag_counter >= col-1){
     ros::shutdown();
   }
-  q_desired = joint_states_csv.col(rosbag_counter);
-  Eigen::Matrix<double, 3, 1> x_desired = x_t_traj.col(rosbag_counter); 
+  q_desired = joint_states_csv_.col(rosbag_counter);
+  Eigen::Matrix<double, 3, 1> x_desired = x_t_traj_.col(rosbag_counter); 
   std::cout<<"q_desired: "<<q_desired.transpose()<<std::endl;
   // std::cout<<"x_desired: "<<x_desired.transpose()<<std::endl;
   Eigen::VectorXd dq_mod = qp_controller(q, dq, F_ext_fil, counter, q_desired, x_desired);
