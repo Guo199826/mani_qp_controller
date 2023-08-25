@@ -6,24 +6,13 @@
 #include "../include/qp_controller.h"
 
 VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &dq_, 
-                        const MatrixXd &F_ext, Index &counter, const Matrix<double,7,1> &q_desired,
+                        Index &counter, const Matrix<double,7,1> &q_desired,
                         const Matrix<double,3,1> &x_desired)
 {
-    // Change the setting here, to switch between guidance and tracking
-    // tracking
-    bool Tracking = false;
-    bool guidance = false;
     c_float K_qp = 2; 
     Matrix<double,7,1> q_goal;
     q_goal = q_desired;
-    // guidance
-    // bool Tracking = false;
-    // bool guidance = true;
-    // c_float K_qp = 0.001;
-    // Matrix<double,7,1> q_goal;
-    // q_goal = q_goal_traj.col(counter);
-    ///////////////////////////////////////////////////////////////////
- 
+    
     // using std::chrono::high_resolution_clock;
     // using std::chrono::duration;
     // using std::chrono::milliseconds;
@@ -77,16 +66,12 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
     // q_goal = q_ + q_add;
     // q_goal<<-0.000545241, -0.787773, -0.00212514, -2.3583, 0.5, 1.57543, 0.795024;
     // q_goal<<-0.5, -0.787773, -0.5, -2.3583, 0.5, 1.57543, 0.0;
-    q_goal_traj.col(0)<<-0.5, -0.787773, -0.5, -2.3583, 0.5, 1.57543, 0.0;
-    q_goal_traj.col(1)<<0.3, -0.787773, -0.5, -2.3583, 0.5, 1.57543, 0.0;
-    q_goal_traj.col(2)<<0.3, -0.787773, -0.5, -2.3583, 0.9, 1.57543, 0.0;
+    // q_goal_traj.col(0)<<-0.5, -0.787773, -0.5, -2.3583, 0.5, 1.57543, 0.0;
+    // q_goal_traj.col(1)<<0.3, -0.787773, -0.5, -2.3583, 0.5, 1.57543, 0.0;
+    // q_goal_traj.col(2)<<0.3, -0.787773, -0.5, -2.3583, 0.9, 1.57543, 0.0;
 
-    
     // q_goal << -pi/2.0, 0.004, 0.0, -1.57156, 0.0, 1.57075, 0.0;
     // q_goal << 0.519784, 0.991963, 1.50832, -1.54527, -1.2189, 0.878087, 0.0;
-    // q_ << 0, 0, 0, -1.5708, 0.0, 1.3963, 0.0 ;
-    // MatrixXd I = vi.get_inertia_matrix(vi.get_object_handle("Franka_joint7"));
-    // std::cout<<"Inertia matrix:------------------ "<<std::endl<<I<<std::endl;
 
     // joint velocity bounds
     Matrix<double, 7, 1> dq_min = robot.get_lower_q_dot_limit();
@@ -176,19 +161,20 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
     SparseMatrix<c_float> A_s;
     Matrix<double, 7, 7> I;
     I.setIdentity();
+    // eqaulity constraint right part
+    Vector3d dxr;
 
     // std::cout << "Starting control loop-------------------------------------------------" << std::endl;
     // Main control loop //////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////////
     for (int i = 0; i<nbIter; i++){
         VectorXd qt = q_;
-        // qt_track.col(i) = qt;
-        // forward kinematic model
+        // forward kinematic
         DQ xt = robot.fkm(qt);
         //test coordinate with frankaros
         // std::cout<<"fkm: ------- "<<xt<<std::endl;
         // Matrix4d tfm = dq2tfm(xt);
-
+        // cartesian position
         Vector3d xt_t = xt.translation().vec3();
         // std::cout<<"xt: "<<xt_t<<std::endl;
 
@@ -209,26 +195,6 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
         array<DenseIndex, 3> extent = {m, m, 1};
         Tensor<double, 3> Me_ct_tensor = TensorMap<Tensor<double, 3>>(Me_ct.data(), 6, 6, 1);
         Me_track.slice(offset, extent) = Me_ct_tensor;
-
-
-
-        // ******************* Contributor: Yuhe Gong ******************************
-        // Admittance Controller
-        // external force threshold
-        double F_ext_threshold = 8;
-        // control law
-        Eigen::Vector3d control_signal; 
-        if ((F_ext.col(0)).norm() > F_ext_threshold ){
-            control_signal = - 0.01* F_ext;
-        }  
-        else {
-            control_signal.setZero();
-        }
-        // eqaulity constraint right part
-        Eigen::Vector3d dxr = control_signal;
-        // **************************************************************************
-
-
 
         // calculate distance between Me_d and Me_ct
         // MatrixXd Md = Me_d.pow(-0.5)*Me_ct*Me_d.pow(-0.5);
@@ -270,8 +236,10 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
         // std::cout<<"ev_t: -------------------"<<std::endl<<ev_t<<std::endl;
         ev_diff = jacobianEstVector(qt, n, robot);
 
+
         // ++++++++++++++++++++QP Controller using osqp-eigen+++++++++++++++++++++++++++++++++
         // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+        // Cost Function: Hessian matrix H and Gradient f
         // constexpr double tolerance = 1e-4;
         Matrix<c_float, 7, 7> H = Jm_t.transpose()*Jm_t;
         H_s = H.sparseView();
@@ -281,27 +249,70 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
         Matrix<c_float, 1, 7> f = -K_qp* vec_M_diff.transpose()*Jm_t;
         // std::cout<<"f: "<<std::endl<<f<<std::endl;
 
+        // Initialize matrices for constraints
+        Matrix<c_float, 17, 1> lb;
+        Matrix<c_float, 17, 7> A;
+        Matrix<c_float, 17, 1> ub;
         // Constraints:
-        // 1. set min. allowed eigenvalue (min. ellipsoid axis length)
+        // 1. Inequality Constraint:---------------------------------------
+        // set min. allowed eigenvalue (min. ellipsoid axis length)
         c_float ev_min_r = 0.5;
         c_float ev_min_t = 0.1;
         Matrix<c_float, 6,1> ev_min;
         Matrix<c_float, 6,1> v_max;
         ev_min << ev_min_r, ev_min_r, ev_min_r, ev_min_t, ev_min_t, ev_min_t;
-        v_max = (ev_min - ev_t)*3;
-        // Bounds
-        // Regarding joint position:
+        v_max = (ev_min - ev_t) * 1; // gain: 3
+        lb.block(0,0,6,1) = v_max;
+        A.block(0,0,6,7) = ev_diff;
+        ub.block(0,0,6,1).setConstant(OsqpEigen::INFTY);
+
+        // 2. Equality Constraint for cartesian tracking-------------------
+        // lb.block(6,0,3,1).setZero();
+        // A.block(6,0,3,7).setZero();
+        // ub.block(6,0,3,1).setZero();
+        // tune the gain! To give cartesian tracking some space
+        dxr = (x_desired - xt_t)*2;
+        lb.block(6,0,3,1) = dxr; 
+        A.block(6,0,3,7) = J_geom_t;
+        ub.block(6,0,3,1) = dxr;
+
+        // 3. Equality Constraint for single axis ME tracking--------------
+        lb.block(9,0,1,1).setZero();
+        A.block(9,0,1,7).setZero();
+        ub.block(9,0,1,1).setZero();
+        // lb.block(9,0,1,1) = M_diff_axis;
+        // A.block(9,0,1,7) = Jm_t_axis;
+        // ub.block(9,0,1,1) = M_diff_axis;
+
+        // 4. Bounds------------------------------------------------------
+        // a. Regarding joint velocity:
+        // lb.block(10,0,7,1) = dq_min;
+        // A.block(10,0,7,7) = I;
+        // ub.block(10,0,7,1) = dq_max;
+        // b. Regarding joint position: 
+        // tune the gain!!!
         dq_min_q = (q_min-qt)/dt;
         dq_max_q = (q_max-qt)/dt;
-        // Regarding joint acceleration:
+        // lb.block(17,0,7,1) = dq_min_q;
+        // A.block(17,0,7,7) = I;
+        // ub.block(17,0,7,1) = dq_max_q;
+        // c. Regarding joint acceleration:
         if (i == 0){
             dq_min_ddq = -ddq_max*2;
             dq_max_ddq = ddq_max*2;
         }
         else {
+            // tune the gain!!!
             dq_min_ddq = dq_ - ddq_max * dt ;
             dq_max_ddq = dq_ + ddq_max * dt ;
         }
+        // lb.block(24,0,7,1) = dq_min_ddq;
+        // A.block(24,0,7,7) = I;
+        // ub.block(24,0,7,1) = dq_max_ddq;
+        // lb.block(24,0,7,1).setZero();
+        // A.block(24,0,7,7).setZero();
+        // ub.block(24,0,7,1).setZero();
+
         Matrix<double, 7, 3> M_lb;
         Matrix<double, 7, 3> M_ub;
         M_lb.block(0,0,7,1) = dq_min_q;
@@ -310,64 +321,16 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
         M_ub.block(0,0,7,1) = dq_max_q;
         M_ub.block(0,1,7,1) = dq_max;
         M_ub.block(0,2,7,1) = dq_max_ddq;
-        // std::cout<<"M_lb: "<<std::endl<<M_lb<<std::endl;
-        // std::cout<<"M_ub: "<<std::endl<<M_ub<<std::endl;
-        
         VectorXd lb_limits;
         lb_limits = M_lb.rowwise().maxCoeff();
         VectorXd ub_limits;
         ub_limits = M_ub.rowwise().minCoeff();
-        // std::cout<<"lb_limits: "<<std::endl<<lb_limits<<std::endl;
-        // std::cout<<"ub_limits: "<<std::endl<<ub_limits<<std::endl;
-
-        Matrix<c_float, 17, 1> lb;
-        lb.block(0,0,6,1) = v_max;
-
-        // lb.block(9,0,1,1) = M_diff_axis;
-        lb.block(9,0,1,1).setZero();
         lb.block(10,0,7,1) = lb_limits;
-        // std::cout<<"lb: "<<lb.transpose()<<std::endl;
-        Matrix<c_float, 17, 7> A;
-        A.block(0,0,6,7) = ev_diff;
-
-        // A.block(9,0,1,7) = Jm_t_axis;
-        A.block(9,0,1,7).setZero();
         A.block(10,0,7,7) = I;
-        // std::cout<<"A: "<<std::endl<<A<<std::endl
-        Matrix<c_float, 17, 1> ub;
-        ub.block(0,0,6,1).setConstant(OsqpEigen::INFTY);
-
-        // ub.block(9,0,1,1) = M_diff_axis;
-        ub.block(9,0,1,1).setZero();
         ub.block(10,0,7,1) = ub_limits;
+        // --------------------------------------------------------------------
         
-
-        // ******************* Contributor: Yuhe Gong ******************************
-        // Tracking Task or Guidance Task
-        
-        if (Tracking || guidance){
-            // set the equality constraints: J * \dot{q} = \dot{x}
-            lb.block(6,0,3,1) = dxr; 
-            A.block(6,0,3,7) = J_geom_t;
-            ub.block(6,0,3,1) = dxr;
-            // no human guidance cost
-        }
-        else{
-            // remove the equality constraints
-            // lb.block(6,0,3,1).setZero();
-            // A.block(6,0,3,7).setZero();
-            // ub.block(6,0,3,1).setZero();
-            dxr = (x_desired - xt_t)*2;
-            // dxr <<0,0,0;
-            lb.block(6,0,3,1) = dxr; 
-            A.block(6,0,3,7) = J_geom_t;
-            ub.block(6,0,3,1) = dxr;
-        }
-        // **************************************************************************
-
-
         A_s = A.sparseView();
-        
         // std::cout<<"ub: "<<ub.transpose()<<std::endl;
         OsqpEigen::Solver solver;
         solver.settings()->setVerbosity(false); // print output or not

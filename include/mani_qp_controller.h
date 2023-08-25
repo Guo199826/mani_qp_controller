@@ -22,6 +22,7 @@
 #include <ros/node_handle.h>
 #include <ros/time.h>
 #include "../include/qp_controller.h"
+#include "../include/adm_controller.h"
 #include "convert_csv2matrix.h"
 // #include "q2x.h"
 #include <franka_hw/franka_cartesian_command_interface.h>
@@ -74,7 +75,9 @@ namespace mani_qp_controller {
     Eigen::MatrixXd x_t_traj_;
     size_t col;
     // Matrix<double,7,1> q_desired;
-
+    // track or guid:
+    bool tracking = true;
+    // bool guidance = true;
   };
 
 }  // namespace mani_qp_controller

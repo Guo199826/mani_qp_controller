@@ -33,7 +33,7 @@ Prerequisites:
 #include "../include/FrankaRobot.h"
 // #include <dqrobotics/robot_modeling/DQ_SerialManipulator.h>
 // #include <dqrobotics/robot_control/DQ_PseudoinverseController.h>
-#include <thread>
+// #include <thread>
 #include <eigen3/Eigen/Core>
 #include <eigen3/Eigen/Geometry>
 #include <unsupported/Eigen/MatrixFunctions>
@@ -53,7 +53,7 @@ using namespace Eigen;
 using namespace DQ_robotics;
 
 VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &dq_, 
-                        const MatrixXd &F_ext, Index &counter, const Matrix<double,7,1> &q_desired,
+                        Index &counter, const Matrix<double,7,1> &q_desired,
                         const Matrix<double,3,1> &x_desired);
 
 #endif
