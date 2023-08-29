@@ -4,9 +4,10 @@
   <arg name="arm_id" default="$(arg robot)" />
   <arg name="robot_ip" default="192.168.3.122" />
   <arg name="rosbag_record_traj" default="false" />
-  <arg name="rosbag_record_real" default="true" />
+  <arg name="rosbag_record_real" default="false" />
   <arg name="rqt_plot" default="false" />
   <arg name="rviz" default="false" />
+  <arg name="adm_controller" default="full"/>
 
   <include file="$(find franka_control)/launch/franka_control.launch" pass_all_args="true"/>
   <rosparam command="load" file="$(find mani_qp_controller)/config/mani_qp_controller.yaml"/>

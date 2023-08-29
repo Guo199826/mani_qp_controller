@@ -1,37 +1,105 @@
+// ************************************** Contributor: Yuhe Gong ********************************************
+// Admittance Controller Codes
 #include "../include/adm_controller.h"
 
-VectorXd adm_controller(const Matrix<double,7,1> &q_, const MatrixXd &F_ext){
+
+// ***************************** external force control (translation jacobian) ******************************
+VectorXd tran_adm_controller(const Matrix<double,7,1> &q_, const MatrixXd &F_ext){
     // Robot definition
     DQ_SerialManipulatorMDH robot = FrankaRobot::kinematics();
+
     // Set link number and joint angle
     int n = 7;
+
+    // Calculate Jacobian matrix
     MatrixXd J;
     MatrixXd J_geom;
-    MatrixXd J_geom_t;
     Matrix<double,7,1> dq_res;
     J = robot.pose_jacobian(q_);
-    J_geom = geomJac(robot, J, q_, n); 
-    J_geom_t = J_geom.block(3, 0, 3, n); 
+    J_geom = geomJac(robot, J, q_, n);
 
-    // ******************* Contributor: Yuhe Gong ******************************
-    // Admittance Controller
-    // external force threshold
+    // Cartesian controller law
     double F_ext_threshold = 8;
-    // control law
-    Vector3d control_signal; 
-    if ((F_ext.col(0)).norm() > F_ext_threshold ){
-        control_signal = - 0.01* F_ext;
-    }  
-    else {
-        control_signal.setZero();
+    Matrix<double, 6, 1> dx;
+    dx.setZero();
+    if ((F_ext.col(0)).norm() > F_ext_threshold){
+        MatrixXd F_ext_normalized = ((F_ext.col(0)).norm() - F_ext_threshold) / (F_ext.col(0)).norm() * F_ext;
+        // translation controller
+        dx.block(3,0,3,1) = - 0.03 * F_ext_normalized.block(0,0,3,1);
     }
-    // eqaulity constraint right part
-    Vector3d dxr = control_signal;
-    // set the equality constraints: J * \dot{q} = \dot{x}
-    CompleteOrthogonalDecomposition<MatrixXd> cod(J_geom_t);
-    MatrixXd J_geom_t_inv = cod.pseudoInverse();
-    // std::cout<<"pseudoinverse of J_geom_t:\n"<<J_geom_t_inv<<std::endl;
-    dq_res = J_geom_t_inv * dxr;
-    // **************************************************************************
+
+    // Joint velocity signal 
+    CompleteOrthogonalDecomposition<MatrixXd> cod(J_geom);
+    MatrixXd J_geom_use_inv = cod.pseudoInverse();
+    dq_res = J_geom_use_inv * dx.col(0);
+    return dq_res;
+}
+
+
+// ***************************** external torque control (rotation jacobian) ******************************
+VectorXd rot_adm_controller(const Matrix<double,7,1> &q_, const MatrixXd &F_ext){
+    // Robot definition
+    DQ_SerialManipulatorMDH robot = FrankaRobot::kinematics();
+
+    // Set link number and joint angle
+    int n = 7;
+
+    // Calculate Jacobian matrix
+    MatrixXd J;
+    MatrixXd J_geom;
+    Matrix<double,7,1> dq_res;
+    J = robot.pose_jacobian(q_);
+    J_geom = geomJac(robot, J, q_, n);
+
+    // Cartesian controller law
+    double F_ext_threshold = 8;
+    Matrix<double, 6, 1> dx;
+    dx.setZero();
+    if ((F_ext.col(0)).norm() > F_ext_threshold){
+        MatrixXd F_ext_normalized = ((F_ext.col(0)).norm() - F_ext_threshold) / (F_ext.col(0)).norm() * F_ext;
+        // rotation controller:
+        dx.block(0,0,3,1) = - 0.15 * F_ext_normalized.block(3,0,3,1);
+    }
+
+    // Joint velocity signal 
+    CompleteOrthogonalDecomposition<MatrixXd> cod(J_geom);
+    MatrixXd J_geom_use_inv = cod.pseudoInverse();
+    dq_res = J_geom_use_inv * dx.col(0);
+    return dq_res;
+}
+
+
+// *************************** external force & torque control (full jacobian) ****************************
+VectorXd full_adm_controller(const Matrix<double,7,1> &q_, const MatrixXd &F_ext){
+    
+    // Robot definition
+    DQ_SerialManipulatorMDH robot = FrankaRobot::kinematics();
+
+    // Set link number and joint angle
+    int n = 7;
+
+    // Calculate Jacobian matrix
+    MatrixXd J;
+    MatrixXd J_geom;
+    Matrix<double,7,1> dq_res;
+    J = robot.pose_jacobian(q_);
+    J_geom = geomJac(robot, J, q_, n);
+
+    // Cartesian controller law
+    double F_ext_threshold = 8;
+    Matrix<double, 6, 1> dx;
+    dx.setZero();
+    if ((F_ext.col(0)).norm() > F_ext_threshold){
+        MatrixXd F_ext_normalized = ((F_ext.col(0)).norm() - F_ext_threshold) / (F_ext.col(0)).norm() * F_ext;
+        // translation controller
+        dx.block(3,0,3,1) = - 0.03 * F_ext_normalized.block(0,0,3,1);
+        // rotation controller:
+        dx.block(0,0,3,1) = - 0.15 * F_ext_normalized.block(3,0,3,1);
+    }
+
+    // Joint velocity signal 
+    CompleteOrthogonalDecomposition<MatrixXd> cod(J_geom);
+    MatrixXd J_geom_use_inv = cod.pseudoInverse();
+    dq_res = J_geom_use_inv * dx.col(0);
     return dq_res;
 }

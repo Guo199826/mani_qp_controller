@@ -8,6 +8,24 @@ namespace mani_qp_controller {
 
 bool ManiQpController::init(hardware_interface::RobotHW* robot_hardware,
                                           ros::NodeHandle& node_handle) {
+  std::string t_g;
+  std::cout<<"Please choose tracking or guidance:";
+  std::cin>>t_g;
+  if (t_g == "tracking") {
+    tracking = true;
+  }
+  else if (t_g == "guidance") {
+    tracking = false;
+    std::cout<<"Please choose a type of admittance controller (full, tran or rot):";
+    std::cin>>adm_controller;
+    if (!(adm_controller == "full" || adm_controller == "tran" || adm_controller == "rot")) {
+      ROS_ERROR("No admittance controller specified");
+    }
+  }
+  else {
+    ROS_ERROR("No programm identified");
+  }
+
   velocity_joint_interface_ = robot_hardware->get<hardware_interface::VelocityJointInterface>();
   if (velocity_joint_interface_ == nullptr) {
     ROS_ERROR(
@@ -174,19 +192,18 @@ void ManiQpController::update(const ros::Time& /* time */,
 
   // get external force & torque
   std::array<double, 6> F_ext_array = robot_state.O_F_ext_hat_K;
-  Eigen::Map<Eigen::Matrix<double, 3, 2>> F_ext_6D(F_ext_array.data());
-  Matrix<double, 3, 1> F_ext = F_ext_6D.col(0);
-  Matrix<double, 3, 1> F_ext_fil;
+  Eigen::Map<Eigen::Matrix<double, 6, 1>> F_ext_6D(F_ext_array.data());
+  Matrix<double, 6, 1> F_ext = F_ext_6D;
+  MatrixXd F_ext_fil;
  
   // ******************* Contributor: Yuhe Gong ******************************
-  // Low Pass Filter
-  // T_s: sampling time = 0.001 
-  double Ts = 0.001;
-  // F_c: cut_off frequency = 1
-  double fc = 1;
-  // a = T_s / (T_s + RC) = 2 * pi * f_c * T_s / (2 * pi * f_c * T_s + 1)
-  double a = 2 * 3.14 * fc * Ts / (2 * 3.14 * fc * Ts + 1);
   // Low Pass Filter: y_n = a x_n + (1 - a) * y_{n-1} = y_{n-1} + a * (x_n - y_{n-1})
+  // T_s: sampling time = 0.001 
+  // F_c: cut_off frequency = 1
+  // a = T_s / (T_s + RC) = 2 * pi * f_c * T_s / (2 * pi * f_c * T_s + 1)
+  double Ts = 0.001;
+  double fc = 0.5;
+  double a = 2 * 3.14 * fc * Ts / (2 * 3.14 * fc * Ts + 1);
   if (i == 0){
     F_ext_fil = F_ext;
   }
@@ -233,9 +250,20 @@ void ManiQpController::update(const ros::Time& /* time */,
     if (rosbag_counter >= col-1){
       ros::shutdown();
     }
-  } else{
-    dq_mod = adm_controller(q, F_ext_fil);
+  } 
+  else{
+    // admittance controller
+    if (adm_controller=="full") {
+    dq_mod = full_adm_controller(q, F_ext_fil);
+    }
+    else if (adm_controller=="tran"){
+      dq_mod = tran_adm_controller(q, F_ext_fil);
+    }
+    else if (adm_controller=="rot") {
+      dq_mod = rot_adm_controller(q, F_ext_fil);
+    }
   }
+
   // std::cout<<"Mani_command: "<<dq_mod.transpose()<<std::endl;
   // send command to robot
   // std::cout << "start loop" << std::endl;

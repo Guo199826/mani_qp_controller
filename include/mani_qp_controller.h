@@ -65,10 +65,10 @@ namespace mani_qp_controller {
     // rotation limit
     Eigen::Matrix<double, 4, 4> O_T_EE_init;
     Eigen::Matrix<double, 3, 3> O_R_EE_init;
+    Eigen::MatrixXd F_ext_fil_last;
 
     Eigen::MatrixXd q_track;
     size_t i;
-    Eigen::Matrix<double, 3, 1> F_ext_fil_last;
 
     // matrix in which the data from csv go in
     Eigen::MatrixXd joint_states_csv_;
@@ -76,7 +76,8 @@ namespace mani_qp_controller {
     size_t col;
     // Matrix<double,7,1> q_desired;
     // track or guid:
-    bool tracking = true;
+    bool tracking;   
+    std::string adm_controller;
     // bool guidance = true;
   };
 
