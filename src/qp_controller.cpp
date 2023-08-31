@@ -1,39 +1,27 @@
-// To switch from tracking to guidance:
-// 1. bool guidance = true;
-// 2. K_qp = 0.001;
-// 3. q_goal = one specified config
-
 #include "../include/qp_controller.h"
 
 VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &dq_, 
                         Index &counter, const Matrix<double,7,1> &q_desired,
                         const Matrix<double,3,1> &x_desired)
 {
-    c_float K_qp = 2; 
+    // Gain Tunning //////////////////////////////////////////////////
+    c_float K_qp = 1; // for cost function
+    c_float K_dx = 1; // for cartesian tracking
+    c_float K_sing = 3; // for min. eigenvalue
+    // set min. allowed eigenvalue (min. ellipsoid axis length)
+    c_float ev_min_r = 0.25;
+    c_float ev_min_t = 0.05;
+    ///////////////////////////////////////////////////////////////////
     Matrix<double,7,1> q_goal;
-    q_goal = q_desired;
+    // q_goal = q_desired;
     
     // using std::chrono::high_resolution_clock;
     // using std::chrono::duration;
     // using std::chrono::milliseconds;
 
     // auto t1 = high_resolution_clock::now();
-
-    // VectorXd q_input(7);
-    // q_input = q_;
-    // std::cout<<"q_initial: "<<std::endl<<q_<<std::endl;
-    // // Input trajectories from file
-    // MatrixXd x_d_traj = readDataMatrix("../data/x_traj.txt",3,5);
-    // Tensor<double,3> Me_d_traj = readDataTensor("../data/me_traj.txt",6,6,5);
     
     // /////////////////////////////////////////////////////////
-
-    // std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    // std::vector<std::string>jointnames = {"Franka_joint1", "Franka_joint2",
-    //                                        "Franka_joint3", "Franka_joint4",
-    //                                        "Franka_joint5", "Franka_joint6",
-    //                                        "Franka_joint7"};
-
     // Robot definition
     DQ_SerialManipulatorMDH robot = FrankaRobot::kinematics();
     // std::shared_ptr<DQ_SerialManipulatorMDH> robot_ptr = std::make_shared<DQ_SerialManipulatorMDH> (robot);
@@ -61,11 +49,8 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
     // q_ << -1.98968, -0.383972, -2.87979, -1.5708, 4.20539e-17, 1.39626, 0;
     // Matrix<double,7,1> q_add;
     Matrix<double,7,3> q_goal_traj;
-    // q_add << 0, 0, 0, 0, 0.5, 0.5, 0; 
-    // q_goal = q_input+ q_add;
-    // q_goal = q_ + q_add;
     // q_goal<<-0.000545241, -0.787773, -0.00212514, -2.3583, 0.5, 1.57543, 0.795024;
-    // q_goal<<-0.5, -0.787773, -0.5, -2.3583, 0.5, 1.57543, 0.0;
+    q_goal << -0.5, -0.787773, -0.5, -2.3583, 0.5, 1.57543, 0.0;
     // q_goal_traj.col(0)<<-0.5, -0.787773, -0.5, -2.3583, 0.5, 1.57543, 0.0;
     // q_goal_traj.col(1)<<0.3, -0.787773, -0.5, -2.3583, 0.5, 1.57543, 0.0;
     // q_goal_traj.col(2)<<0.3, -0.787773, -0.5, -2.3583, 0.9, 1.57543, 0.0;
@@ -81,7 +66,7 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
     Matrix<double, 7, 1> q_max = robot.get_upper_q_limit();
     // joint acceleration bounds
     Matrix<double, 7, 1> ddq_max;
-    ddq_max.setConstant(100); // original: 500
+    ddq_max.setConstant(5); // original: 500
     Matrix<double, 7, 1> dq_min_q;
     Matrix<double, 7, 1> dq_max_q;
     Matrix<double, 7, 1> dq_min_ddq;
@@ -236,7 +221,6 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
         // std::cout<<"ev_t: -------------------"<<std::endl<<ev_t<<std::endl;
         ev_diff = jacobianEstVector(qt, n, robot);
 
-
         // ++++++++++++++++++++QP Controller using osqp-eigen+++++++++++++++++++++++++++++++++
         // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
         // Cost Function: Hessian matrix H and Gradient f
@@ -256,25 +240,23 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
         // Constraints:
         // 1. Inequality Constraint:---------------------------------------
         // set min. allowed eigenvalue (min. ellipsoid axis length)
-        c_float ev_min_r = 0.5;
-        c_float ev_min_t = 0.1;
         Matrix<c_float, 6,1> ev_min;
         Matrix<c_float, 6,1> v_max;
         ev_min << ev_min_r, ev_min_r, ev_min_r, ev_min_t, ev_min_t, ev_min_t;
-        v_max = (ev_min - ev_t) * 1; // gain: 3
+        v_max = (ev_min - ev_t) * K_sing; // gain: 3
         lb.block(0,0,6,1) = v_max;
         A.block(0,0,6,7) = ev_diff;
         ub.block(0,0,6,1).setConstant(OsqpEigen::INFTY);
 
         // 2. Equality Constraint for cartesian tracking-------------------
-        // lb.block(6,0,3,1).setZero();
-        // A.block(6,0,3,7).setZero();
-        // ub.block(6,0,3,1).setZero();
+        lb.block(6,0,3,1).setZero();
+        A.block(6,0,3,7).setZero();
+        ub.block(6,0,3,1).setZero();
         // tune the gain! To give cartesian tracking some space
-        dxr = (x_desired - xt_t)*2;
-        lb.block(6,0,3,1) = dxr; 
-        A.block(6,0,3,7) = J_geom_t;
-        ub.block(6,0,3,1) = dxr;
+        // dxr = (x_desired - xt_t) * K_dx;
+        // lb.block(6,0,3,1) = dxr; 
+        // A.block(6,0,3,7) = J_geom_t;
+        // ub.block(6,0,3,1) = dxr;
 
         // 3. Equality Constraint for single axis ME tracking--------------
         lb.block(9,0,1,1).setZero();
@@ -291,8 +273,8 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
         // ub.block(10,0,7,1) = dq_max;
         // b. Regarding joint position: 
         // tune the gain!!!
-        dq_min_q = (q_min-qt)/dt;
-        dq_max_q = (q_max-qt)/dt;
+        dq_min_q = (q_min-qt);
+        dq_max_q = (q_max-qt);
         // lb.block(17,0,7,1) = dq_min_q;
         // A.block(17,0,7,7) = I;
         // ub.block(17,0,7,1) = dq_max_q;
@@ -303,8 +285,8 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
         }
         else {
             // tune the gain!!!
-            dq_min_ddq = dq_ - ddq_max * dt ;
-            dq_max_ddq = dq_ + ddq_max * dt ;
+            dq_min_ddq = dq_ - ddq_max * dt  ; //*dt
+            dq_max_ddq = dq_ + ddq_max * dt  ;
         }
         // lb.block(24,0,7,1) = dq_min_ddq;
         // A.block(24,0,7,7) = I;

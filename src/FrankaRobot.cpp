@@ -77,7 +77,9 @@ namespace DQ_robotics
         // const VectorXd q_min_ = ((VectorXd(7) << -2.3093,-1.5133,-2.4937, -2.7478,-2.4800, 0.8521, -2.6895).finished());
         const VectorXd q_max_ = ((VectorXd(7) <<  2.8973, 1.7628, 2.8973, -0.0698, 2.8973, 3.7520,  2.8973).finished());
         // const VectorXd q_max_ = ((VectorXd(7) <<  2.8973, 1.7628, 2.8973, -0.0698, 2.8973, 3.6,  2.8973).finished());
-        const VectorXd q_min_ = ((VectorXd(7) << -2.8973,-1.7628,-2.8973, -3.0718,-2.8973, -0.0175, -2.8973).finished());
+        // const VectorXd q_min_ = ((VectorXd(7) << -2.8973,-1.7628,-2.8973, -3.0718,-2.8973, -0.0175, -2.8973).finished());
+        const VectorXd q_min_ = ((VectorXd(7) << -2.8973, -1.7628, -0.4, -3.0718,-2.8973, -0.0175, -2.8973).finished());
+
         return std::make_tuple(q_min_, q_max_);
     }
 

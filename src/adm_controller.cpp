@@ -29,9 +29,10 @@ VectorXd tran_adm_controller(const Matrix<double,7,1> &q_, const MatrixXd &F_ext
     }
 
     // Joint velocity signal 
-    CompleteOrthogonalDecomposition<MatrixXd> cod(J_geom);
-    MatrixXd J_geom_use_inv = cod.pseudoInverse();
-    dq_res = J_geom_use_inv * dx.col(0);
+    // CompleteOrthogonalDecomposition<MatrixXd> cod(J_geom);
+    // MatrixXd J_geom_use_inv = cod.pseudoInverse();
+    // dq_res = J_geom_use_inv * dx.col(0);
+    dq_res = J_geom.transpose() * dx.col(0);
     return dq_res;
 }
 
@@ -62,9 +63,10 @@ VectorXd rot_adm_controller(const Matrix<double,7,1> &q_, const MatrixXd &F_ext)
     }
 
     // Joint velocity signal 
-    CompleteOrthogonalDecomposition<MatrixXd> cod(J_geom);
-    MatrixXd J_geom_use_inv = cod.pseudoInverse();
-    dq_res = J_geom_use_inv * dx.col(0);
+    // CompleteOrthogonalDecomposition<MatrixXd> cod(J_geom);
+    // MatrixXd J_geom_use_inv = cod.pseudoInverse();
+    // dq_res = J_geom_use_inv * dx.col(0);
+    dq_res = J_geom.transpose() * dx.col(0);
     return dq_res;
 }
 
@@ -86,20 +88,21 @@ VectorXd full_adm_controller(const Matrix<double,7,1> &q_, const MatrixXd &F_ext
     J_geom = geomJac(robot, J, q_, n);
 
     // Cartesian controller law
-    double F_ext_threshold = 8;
+    double F_ext_threshold = 5;
     Matrix<double, 6, 1> dx;
     dx.setZero();
     if ((F_ext.col(0)).norm() > F_ext_threshold){
         MatrixXd F_ext_normalized = ((F_ext.col(0)).norm() - F_ext_threshold) / (F_ext.col(0)).norm() * F_ext;
         // translation controller
-        dx.block(3,0,3,1) = - 0.03 * F_ext_normalized.block(0,0,3,1);
+        dx.block(3,0,3,1) = - 0.08 * F_ext_normalized.block(0,0,3,1);
         // rotation controller:
-        dx.block(0,0,3,1) = - 0.15 * F_ext_normalized.block(3,0,3,1);
+        dx.block(0,0,3,1) = - 0.3 * F_ext_normalized.block(3,0,3,1);
     }
 
     // Joint velocity signal 
     CompleteOrthogonalDecomposition<MatrixXd> cod(J_geom);
     MatrixXd J_geom_use_inv = cod.pseudoInverse();
     dq_res = J_geom_use_inv * dx.col(0);
+    //dq_res = J_geom.transpose() * dx.col(0);
     return dq_res;
 }

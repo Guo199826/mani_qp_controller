@@ -26,8 +26,8 @@ for bag_file in $dir_vel/*.bag; do
     sed -i '1d' "$csv_dir/$base_filename.csv"
 done
 
-# # rostopic echo -b joint_position_traj.bag -p /franka_state_controller/joint_position > joint_position_guid.csv
-# # rostopic echo -b joint_velocity_traj.bag -p /franka_state_controller/joint_velocity > joint_velocity_guid.csv
+# rostopic echo -b joint_position_traj.bag -p /franka_state_controller/joint_position > joint_position_guid.csv
+# rostopic echo -b joint_velocity_traj.bag -p /franka_state_controller/joint_velocity > joint_velocity_guid.csv
 
 # rostopic echo -b joint_position_real.bag -p /franka_state_controller/joint_position > joint_position_real.csv
 # rostopic echo -b joint_velocity_real.bag -p /franka_state_controller/joint_velocity > joint_velocity_real.csv

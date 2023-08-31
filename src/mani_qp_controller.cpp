@@ -8,6 +8,7 @@ namespace mani_qp_controller {
 
 bool ManiQpController::init(hardware_interface::RobotHW* robot_hardware,
                                           ros::NodeHandle& node_handle) {
+
   std::string t_g;
   std::cout<<"Please choose tracking or guidance:";
   std::cin>>t_g;
@@ -58,6 +59,20 @@ bool ManiQpController::init(hardware_interface::RobotHW* robot_hardware,
       return false;
     }
   }
+
+  // auto* effort_joint_interface_ = robot_hardware->get<hardware_interface::EffortJointInterface>();
+  // if (effort_joint_interface_ == nullptr) {
+  //   ROS_ERROR_STREAM("ManiQPController: Error getting effort joint interface from hardware");
+  //   return false;
+  // }
+  // for (size_t i = 0; i < 7; ++i) {
+  //   try {
+  //     joint_handles_.push_back(effort_joint_interface_->getHandle(joint_names[i]));
+  //   } catch (const hardware_interface::HardwareInterfaceException& ex) {
+  //     ROS_ERROR_STREAM("ForceExampleController: Exception getting joint handles: " << ex.what());
+  //     return false;
+  //   }
+  // }
 
   
   // try {
@@ -138,7 +153,7 @@ bool ManiQpController::init(hardware_interface::RobotHW* robot_hardware,
   F_ext_fil_last.setZero();
 
   // get joint angle trajectory from csv
-  joint_states_csv_ = load_csv("/home/gari/mani_qp_ws_for_traj/src/mani_qp_controller/data/csv/joint_position_exam_force.csv");
+  joint_states_csv_ = load_csv("/home/gari/mani_qp_ws_for_traj/src/mani_qp_controller/data/csv/joint_position_exam_force_traj.csv");
   // joint_states_csv = joint_states_csv_;
   col = joint_states_csv_.cols();
   std::cout<<"col of matrixXd: "<<col<<std::endl;
@@ -247,8 +262,12 @@ void ManiQpController::update(const ros::Time& /* time */,
   Eigen::VectorXd dq_mod;
   if(tracking){
     dq_mod = qp_controller(q, dq, counter, q_desired, x_desired);
+    // std::cout<<"Mani_command: "<<dq_mod.transpose()<<std::endl;
     if (rosbag_counter >= col-1){
       ros::shutdown();
+    }
+    for (size_t i_ = 0; i_ < 7; ++i_) {
+      velocity_joint_handles_[i_].setCommand(dq_mod(i_));
     }
   } 
   else{
@@ -262,17 +281,19 @@ void ManiQpController::update(const ros::Time& /* time */,
     else if (adm_controller=="rot") {
       dq_mod = rot_adm_controller(q, F_ext_fil);
     }
+    // for (size_t i_ = 0; i_ < 7; ++i_) {
+    //   velocity_joint_handles_[i_].setCommand(dq_mod(i_));
+    //   }
+    // for (size_t i = 0; i < 7; ++i) {
+    //   joint_handles_[i].setCommand(dq_mod(i));
+    //   }
   }
 
-  // std::cout<<"Mani_command: "<<dq_mod.transpose()<<std::endl;
+  // std::cout<<"Joint current velocity: "<<dq_mod.transpose()<<std::endl;
+
   // send command to robot
   // std::cout << "start loop" << std::endl;
-  for (size_t i_ = 0; i_ < 7; ++i_) {
-    velocity_joint_handles_[i_].setCommand(dq_mod(i_));
-    // std::array<double, 7> dq_array_ = robot_state.dq;
-    // Eigen::Map<Eigen::Matrix<double, 7, 1>> dq_(dq_array_.data());
-    // std::cout<<"Joint current velocity: "<<dq_.transpose()<<std::endl;
-  }
+
   // double t1 = ros::Time::now().toSec();
   // ROS_INFO_STREAM("Update running time: "<< t1-t0);
   // ros::Duration time_max(8.0);

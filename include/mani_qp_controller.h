@@ -35,6 +35,7 @@ namespace mani_qp_controller {
   class ManiQpController : public controller_interface::MultiInterfaceController<
                                             franka_hw::FrankaModelInterface,
                                             hardware_interface::VelocityJointInterface,
+                                            // hardware_interface::EffortJointInterface,
                                             franka_hw::FrankaStateInterface> {
   public:
     bool init(hardware_interface::RobotHW* robot_hardware, ros::NodeHandle& node_handle) override;
@@ -47,6 +48,12 @@ namespace mani_qp_controller {
     franka::Robot* robot_;
     hardware_interface::VelocityJointInterface* velocity_joint_interface_;
     std::vector<hardware_interface::JointHandle> velocity_joint_handles_;
+
+    // hardware_interface::EffortJointInterface* effort_joint_interface_;
+    // std::vector<hardware_interface::JointHandle> effort_joint_handles_;
+    // std::vector<hardware_interface::JointHandle> joint_handles_;
+
+
     ros::Duration elapsed_time_;
 
     franka_hw::FrankaStateInterface *franka_state_interface_;
@@ -70,7 +77,7 @@ namespace mani_qp_controller {
     Eigen::MatrixXd q_track;
     size_t i;
 
-    // matrix in which the data from csv go in
+    // matrix in which the data from csv go
     Eigen::MatrixXd joint_states_csv_;
     Eigen::MatrixXd x_t_traj_;
     size_t col;
