@@ -11,17 +11,19 @@ bool ManiQpController::init(hardware_interface::RobotHW* robot_hardware,
 
   std::string t_g;
   std::cout<<"Please choose tracking or guidance:";
-  std::cin>>t_g;
+  //std::cin>>t_g;
+  t_g = "tracking";
+  // t_g = "guidance";
   if (t_g == "tracking") {
     tracking = true;
   }
   else if (t_g == "guidance") {
     tracking = false;
-    std::cout<<"Please choose a type of admittance controller (full, tran or rot):";
-    std::cin>>adm_controller;
-    if (!(adm_controller == "full" || adm_controller == "tran" || adm_controller == "rot")) {
-      ROS_ERROR("No admittance controller specified");
-    }
+    // std::cout<<"Please choose a type of admittance controller (full, tran or rot):";
+    // std::cin>>adm_controller;
+    // if (!(adm_controller == "full" || adm_controller == "tran" || adm_controller == "rot")) {
+    //   ROS_ERROR("No admittance controller specified");
+    // }
   }
   else {
     ROS_ERROR("No programm identified");
@@ -153,7 +155,7 @@ bool ManiQpController::init(hardware_interface::RobotHW* robot_hardware,
   F_ext_fil_last.setZero();
 
   // get joint angle trajectory from csv
-  joint_states_csv_ = load_csv("/home/gari/mani_qp_ws_for_traj/src/mani_qp_controller/data/csv/joint_position_exam_force_traj.csv");
+  joint_states_csv_ = load_csv("/home/gari/mani_qp_ws_for_traj/src/mani_qp_controller/data/csv/joint_position_0906.csv");
   // joint_states_csv = joint_states_csv_;
   col = joint_states_csv_.cols();
   std::cout<<"col of matrixXd: "<<col<<std::endl;
@@ -207,9 +209,32 @@ void ManiQpController::update(const ros::Time& /* time */,
 
   // get external force & torque
   std::array<double, 6> F_ext_array = robot_state.O_F_ext_hat_K;
-  Eigen::Map<Eigen::Matrix<double, 6, 1>> F_ext_6D(F_ext_array.data());
-  Matrix<double, 6, 1> F_ext = F_ext_6D;
+  Eigen::Map<Eigen::Matrix<double, 3, 2>> F_ext_6D(F_ext_array.data());
+  Matrix<double, 6, 1> F_ext;
+  F_ext.block(0,0,3,1)= F_ext_6D.col(1); // get torque
+  F_ext.block(3,0,3,1)= F_ext_6D.col(0); // get force
   MatrixXd F_ext_fil;
+  MatrixXd tau_ext_fil;
+  double F_ext_threshold = 0;
+  std::array<double, 7> gravity_array = model_handle_->getGravity();;
+  Eigen::Map<Eigen::Matrix<double, 7, 1>> Gravity(gravity_array.data());
+  std::array<double, 7> tau_ext_array = robot_state.tau_J;
+  Eigen::Map<Eigen::Matrix<double, 7, 1>> tau_ext(tau_ext_array.data());
+  tau_ext = tau_ext - Gravity;
+
+  if ((F_ext.col(0)).norm() > F_ext_threshold){
+      F_ext = ((F_ext.col(0)).norm() - F_ext_threshold) / (F_ext.col(0)).norm() * F_ext;
+  }
+  else{
+    F_ext.setZero();
+  }
+  if ((tau_ext.col(0)).norm() > F_ext_threshold){
+      tau_ext = ((tau_ext.col(0)).norm() - F_ext_threshold) / (tau_ext.col(0)).norm() * tau_ext;
+  }
+  else{
+    tau_ext.setZero();
+  }
+
  
   // ******************* Contributor: Yuhe Gong ******************************
   // Low Pass Filter: y_n = a x_n + (1 - a) * y_{n-1} = y_{n-1} + a * (x_n - y_{n-1})
@@ -217,15 +242,26 @@ void ManiQpController::update(const ros::Time& /* time */,
   // F_c: cut_off frequency = 1
   // a = T_s / (T_s + RC) = 2 * pi * f_c * T_s / (2 * pi * f_c * T_s + 1)
   double Ts = 0.001;
-  double fc = 0.5;
+  double fc = 0.1;
   double a = 2 * 3.14 * fc * Ts / (2 * 3.14 * fc * Ts + 1);
   if (i == 0){
     F_ext_fil = F_ext;
+    tau_ext_fil = tau_ext;
+    //F_ext_fil = tau_ext_hat_filtered;
+    F_ext_fil_last.setZero();
+    tau_ext_fil_last.setZero();
+
   }
   else{
     F_ext_fil = F_ext_fil_last + a * (F_ext - F_ext_fil_last);
+    tau_ext_fil = tau_ext_fil_last + a * (tau_ext - tau_ext_fil_last);
   }
-  F_ext_fil_last = F_ext_fil;
+  // Integral on F_ext_fil
+  MatrixXd F_Inter;
+  MatrixXd tau_Inter;
+  std::cout<<"Measured F: "<<F_ext_fil.transpose()<<std::endl;
+  F_Inter = F_ext_fil + 0.1 * F_ext_fil_last;
+  tau_Inter = tau_ext_fil + 0 * tau_ext_fil_last;
   // **************************************************************************
 
   // ROS_INFO_STREAM("Joint current position: "<<q.transpose());
@@ -240,6 +276,10 @@ void ManiQpController::update(const ros::Time& /* time */,
   // Eigen::Map<Eigen::Matrix<double,4,4>> O_T_EE(O_T_EE_array.data());
   // ROS_INFO_STREAM("Current position: \n"<<O_T_EE);
 
+  // get end-effector pose (6x1) in base frame
+  std::array<double, 6> dx_array = robot_state.O_dP_EE_c;
+  Eigen::Map<Eigen::Matrix<double, 6, 1>> dx(dx_array.data());
+
   // // get end-effenctor translation in base frame
   // Eigen::Matrix<double, 3, 1> x_EE_t = O_T_EE.block(0,3,3,1);
   // std::cout<<"Current eef translational position: "<<x_EE_t.transpose()<<std::endl;
@@ -253,7 +293,9 @@ void ManiQpController::update(const ros::Time& /* time */,
 
   Eigen::Matrix<double, 7, 1> q_desired;
   // q_desired << -0.3, -0.5, -0.00208172, -2, -0.00172665, 1.57002, 0.794316;
-  size_t rosbag_counter = i/10; // 34
+  // size_t rosbag_counter = i/10;
+  size_t rosbag_counter = i/1000;
+
   // std::cout<<"counter: "<<rosbag_counter<<std::endl;
   q_desired = joint_states_csv_.col(rosbag_counter);
   Eigen::Matrix<double, 3, 1> x_desired = x_t_traj_.col(rosbag_counter); 
@@ -261,33 +303,24 @@ void ManiQpController::update(const ros::Time& /* time */,
   // std::cout<<"x_desired: "<<x_desired.transpose()<<std::endl;
   Eigen::VectorXd dq_mod;
   if(tracking){
-    dq_mod = qp_controller(q, dq, counter, q_desired, x_desired);
+    dq_mod = qp_controller(q, dq, counter, q_desired, x_desired, F_Inter, F_ext_fil, F_ext_fil_last, dx, dx_last, tau_Inter);
+    F_ext_fil_last = F_ext_fil;
+    tau_ext_fil_last = tau_ext_fil;
+    dx_last = dx;
     // std::cout<<"Mani_command: "<<dq_mod.transpose()<<std::endl;
-    if (rosbag_counter >= col-1){
-      ros::shutdown();
-    }
+    // if (rosbag_counter >= col-1){
+    //   ros::shutdown();
+    // }
     for (size_t i_ = 0; i_ < 7; ++i_) {
       velocity_joint_handles_[i_].setCommand(dq_mod(i_));
     }
   } 
-  else{
-    // admittance controller
-    if (adm_controller=="full") {
-    dq_mod = full_adm_controller(q, F_ext_fil);
-    }
-    else if (adm_controller=="tran"){
-      dq_mod = tran_adm_controller(q, F_ext_fil);
-    }
-    else if (adm_controller=="rot") {
-      dq_mod = rot_adm_controller(q, F_ext_fil);
-    }
     // for (size_t i_ = 0; i_ < 7; ++i_) {
     //   velocity_joint_handles_[i_].setCommand(dq_mod(i_));
     //   }
     // for (size_t i = 0; i < 7; ++i) {
     //   joint_handles_[i].setCommand(dq_mod(i));
     //   }
-  }
 
   // std::cout<<"Joint current velocity: "<<dq_mod.transpose()<<std::endl;
 

@@ -1,7 +1,7 @@
 # specify the directory containing the bag files
-dir_pos="/home/gari/mani_qp_ws_for_traj/src/mani_qp_controller/data/bags/pos"
-dir_vel="/home/gari/mani_qp_ws_for_traj/src/mani_qp_controller/data/bags/vel"
-csv_dir="/home/gari/mani_qp_ws_for_traj/src/mani_qp_controller/data/csv"
+dir_pos="/home/gari/mani_tracking_test/src/mani_qp_controller/data/bags/pos"
+dir_vel="/home/gari/mani_tracking_test/src/mani_qp_controller/data/bags/vel"
+csv_dir="/home/gari/mani_tracking_test/src/mani_qp_controller/data/csv"
 
 # loop through all .bag files in the folder and convert into csv without the title line
 # For position.bag:

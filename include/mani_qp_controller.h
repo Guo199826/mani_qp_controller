@@ -72,7 +72,9 @@ namespace mani_qp_controller {
     // rotation limit
     Eigen::Matrix<double, 4, 4> O_T_EE_init;
     Eigen::Matrix<double, 3, 3> O_R_EE_init;
-    Eigen::MatrixXd F_ext_fil_last;
+    Eigen::Matrix<double, 6, 1> F_ext_fil_last;
+    Eigen::Matrix<double, 7, 1> tau_ext_fil_last;
+
 
     Eigen::MatrixXd q_track;
     size_t i;
@@ -85,7 +87,7 @@ namespace mani_qp_controller {
     // track or guid:
     bool tracking;   
     std::string adm_controller;
-    // bool guidance = true;
+    Eigen::Matrix<double, 6, 1> dx_last;
   };
 
 }  // namespace mani_qp_controller
