@@ -68,7 +68,9 @@ namespace DQ_robotics
 
     DQ FrankaRobot::_get_offset_flange()
     {
-        return 1+E_*0.5*k_*1.07e-1;  // 0.5??????
+        // return 1+E_*0.5*k_*1.07e-1;  // 0.5??????
+        return 1+E_*0.5*k_*(1.07e-1 + 0.1034);  // 0.5??????
+
     }
 
     std::tuple<const VectorXd, const VectorXd> FrankaRobot::_get_q_limits()

@@ -10,10 +10,7 @@ bool ManiQpController::init(hardware_interface::RobotHW* robot_hardware,
                                           ros::NodeHandle& node_handle) {
 
   std::string t_g;
-  std::cout<<"Please choose tracking or guidance:";
-  //std::cin>>t_g;
   t_g = "tracking";
-  // t_g = "guidance";
   if (t_g == "tracking") {
     tracking = true;
   }
@@ -155,7 +152,7 @@ bool ManiQpController::init(hardware_interface::RobotHW* robot_hardware,
   F_ext_fil_last.setZero();
 
   // get joint angle trajectory from csv
-  joint_states_csv_ = load_csv("/home/gari/mani_qp_ws_for_traj/src/mani_qp_controller/data/csv/joint_position_0906.csv");
+  joint_states_csv_ = load_csv("/home/gari/mani_qp_ws_for_traj/src/mani_qp_controller/data/csv/joint_position_exam_force_traj.csv");
   // joint_states_csv = joint_states_csv_;
   col = joint_states_csv_.cols();
   std::cout<<"col of matrixXd: "<<col<<std::endl;
@@ -168,14 +165,28 @@ bool ManiQpController::init(hardware_interface::RobotHW* robot_hardware,
   
   // q2xt
   DQ_SerialManipulatorMDH robot = FrankaRobot::kinematics();
-  x_t_traj_.resize(3,col);
+  x_t_traj_.resize(6,col);
   for(size_t i=0; i<col; i++){
       Eigen::Matrix<double,7,1> q = joint_states_csv_.col(i);
       // std::cout<<"q assignmnt"<< q <<std::endl;
       // forward kinematic model
       DQ xt = robot.fkm(q);
       Eigen::Matrix<double,3,1> xt_t = xt.translation().vec3();
-      x_t_traj_.col(i) = xt_t;
+      Eigen::Matrix<double, 6, 1> xt_6;
+      Eigen::Vector4d xt_r = xt.rotation().vec4();
+      Quaterniond rotationQuaternion(xt_r(0), xt_r(1), xt_r(2), xt_r(3));
+      // Convert the rotation quaternion into a 3x3 rotation matrix
+      Eigen::Matrix3d rotationMatrix = rotationQuaternion.toRotationMatrix();
+      double roll, pitch, yaw;
+      roll = atan2(rotationMatrix(2, 1), rotationMatrix(2, 2));
+      pitch = atan2(-rotationMatrix(2, 0), sqrt(rotationMatrix(2, 1) * rotationMatrix(2, 1) + rotationMatrix(2, 2) * rotationMatrix(2, 2)));
+      yaw = atan2(rotationMatrix(1, 0), rotationMatrix(0, 0));
+      xt_6(0,0)= roll;
+      xt_6(1,0)= pitch;
+      xt_6(2,0)= yaw;
+      xt_6.block(3,0,3,1) = xt_t;
+      x_t_traj_.col(i) = xt_6;
+
   }
   // x_t_traj = q2x(joint_states_csv_,col);
   // x_t_traj = x_t_traj_;
@@ -257,11 +268,11 @@ void ManiQpController::update(const ros::Time& /* time */,
     tau_ext_fil = tau_ext_fil_last + a * (tau_ext - tau_ext_fil_last);
   }
   // Integral on F_ext_fil
-  MatrixXd F_Inter;
-  MatrixXd tau_Inter;
-  std::cout<<"Measured F: "<<F_ext_fil.transpose()<<std::endl;
+  Eigen::MatrixXd F_Inter;
+  Eigen::MatrixXd tau_Inter;
+  // std::cout<<"Measured F: "<<F_ext_fil.transpose()<<std::endl;
   F_Inter = F_ext_fil + 0.1 * F_ext_fil_last;
-  tau_Inter = tau_ext_fil + 0 * tau_ext_fil_last;
+  tau_Inter = tau_ext_fil + 0.1 * tau_ext_fil_last;
   // **************************************************************************
 
   // ROS_INFO_STREAM("Joint current position: "<<q.transpose());
@@ -293,39 +304,41 @@ void ManiQpController::update(const ros::Time& /* time */,
 
   Eigen::Matrix<double, 7, 1> q_desired;
   // q_desired << -0.3, -0.5, -0.00208172, -2, -0.00172665, 1.57002, 0.794316;
-  // size_t rosbag_counter = i/10;
-  size_t rosbag_counter = i/1000;
+  size_t rosbag_counter = i/10;
+  // size_t rosbag_counter = i/1000;
 
   // std::cout<<"counter: "<<rosbag_counter<<std::endl;
   q_desired = joint_states_csv_.col(rosbag_counter);
-  Eigen::Matrix<double, 3, 1> x_desired = x_t_traj_.col(rosbag_counter); 
+  Eigen::Matrix<double, 6, 1> x_desired = x_t_traj_.col(rosbag_counter); 
   // std::cout<<"q_desired: "<<q_desired.transpose()<<std::endl;
   // std::cout<<"x_desired: "<<x_desired.transpose()<<std::endl;
   Eigen::VectorXd dq_mod;
+  
+  std::array<double, 42> J_array = model_handle_->getZeroJacobian(franka::Frame::kStiffness);
+  Eigen::Matrix<double, 6, 7> J_franka = Eigen::Map<Eigen::Matrix<double, 6, 7>> (J_array.data());
+  Eigen::Matrix<double, 6, 7> J_franka_;
+  J_franka_.block(0,0,3,7) = J_franka.block(3,0,3,7);
+  J_franka_.block(3,0,3,7) = J_franka.block(0,0,3,7);
+  // std::cout<<"J_franka: "<< std::endl<<J_franka_<<std::endl;
+
   if(tracking){
-    dq_mod = qp_controller(q, dq, counter, q_desired, x_desired, F_Inter, F_ext_fil, F_ext_fil_last, dx, dx_last, tau_Inter);
+    dq_mod = qp_controller(q, dq, counter, q_desired, x_desired, F_Inter, dx, dx_last, tau_Inter);
     F_ext_fil_last = F_ext_fil;
     tau_ext_fil_last = tau_ext_fil;
     dx_last = dx;
     // std::cout<<"Mani_command: "<<dq_mod.transpose()<<std::endl;
-    // if (rosbag_counter >= col-1){
-    //   ros::shutdown();
-    // }
+    if (rosbag_counter >= col-1){
+      ros::shutdown();
+    }
     for (size_t i_ = 0; i_ < 7; ++i_) {
       velocity_joint_handles_[i_].setCommand(dq_mod(i_));
     }
   } 
-    // for (size_t i_ = 0; i_ < 7; ++i_) {
-    //   velocity_joint_handles_[i_].setCommand(dq_mod(i_));
-    //   }
     // for (size_t i = 0; i < 7; ++i) {
     //   joint_handles_[i].setCommand(dq_mod(i));
     //   }
 
   // std::cout<<"Joint current velocity: "<<dq_mod.transpose()<<std::endl;
-
-  // send command to robot
-  // std::cout << "start loop" << std::endl;
 
   // double t1 = ros::Time::now().toSec();
   // ROS_INFO_STREAM("Update running time: "<< t1-t0);

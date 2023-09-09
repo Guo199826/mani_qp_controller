@@ -49,14 +49,14 @@ Prerequisites:
 #include "OsqpEigen/OsqpEigen.h"
 #include <chrono>
 #include <algorithm>
+#include <franka_hw/franka_model_interface.h>
 
 using namespace Eigen;
 using namespace DQ_robotics;
 
 VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &dq_, 
                         Index &counter, const Matrix<double,7,1> &q_desired,
-                        const Matrix<double,3,1> &x_desired, const MatrixXd &F_ext,
-                        const MatrixXd &F_ext_fil, const MatrixXd &F_ext_fil_last,
+                        const Matrix<double,6,1> &x_desired, const MatrixXd &F_ext,
                         const MatrixXd &dx, const MatrixXd &dx_last,
                         const MatrixXd &tau_ext);
 

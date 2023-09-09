@@ -7,19 +7,9 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
                         const MatrixXd &tau_ext)
 {
     // Gain Tunning //////////////////////////////////////////////////
-    c_float K_qp = 0.5; // for cost function
+    c_float K_qp = 2; // for cost function
     c_float K_dx = 1; // for cartesian tracking
     c_float K_sing = 1; // for min. eigenvalue
-    Matrix<double, 6, 6> K_adm;
-    // Matrix<double, 7, 7> K_adm;
-    Matrix<double, 6, 1> K_adm_vec;
-    // first three rotation, last three translation
-    K_adm_vec << 0.02, 0.02, 0.3, 0.03, 0.13, 0.03; 
-    // K_adm_vec << 0.5, 0.5, 0.5, 0.5, 0.5, 0.1, 0.5; 
-    K_adm = K_adm_vec.asDiagonal();
-    Matrix<double, 6, 6> D_adm;
-    Matrix<double, 6, 1> D_adm_vec;
-    D_adm_vec << 20, 20, 20, 20, 20, 20;
     // set min. allowed eigenvalue (min. ellipsoid axis length)
     c_float ev_min_r = 0.02;
     c_float ev_min_t = 0.02;
@@ -35,39 +25,10 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
     // /////////////////////////////////////////////////////////
     // Robot definition
     DQ_SerialManipulatorMDH robot = FrankaRobot::kinematics();
-    // std::shared_ptr<DQ_SerialManipulatorMDH> robot_ptr = std::make_shared<DQ_SerialManipulatorMDH> (robot);
-    // DQ_SerialManipulatorMDH robot_ik = FrankaRobot::kinematics();
-    // DQ offset_base = 1 + E_ * 0.5 * DQ(0, 0, 0, 0);
-    // robot_ik.set_base_frame(offset_base);
-    // robot_ik.set_reference_frame(offset_base);
-
-    // DQ base_frame = vi.get_object_pose("Franka_joint1");
-    // DQ eef_frame = vi.get_object_pose("Franka_connection");
-    // std::cout<<"Originally base frame of robot:.... "<<robot.get_base_frame()<<std::endl;
-    // std::cout<<"base frame in Vrep: "<<base_frame<<std::endl;
-    // std::cout<<"eef frame in Vrep: "<<eef_frame<<std::endl;
-    // robot.set_base_frame(base_frame);
-    // robot.set_reference_frame(base_frame);
-    // std::cout<<"Now base frame in Vrep:.... "<<robot.get_base_frame()<<std::endl;
-    // std::cout<<"Now eef frame in Vrep:.... "<<robot.get_effector()<<std::endl;
-
     // Set link number and joint angle
     int n = 7;
     int m = 6; // Dimension of workspace
-    // VectorXd q_ (n);
-    // VectorXd q_1 (n);
-    // q_1 << 1.15192, 0.383972, 0.261799, -1.5708, 0.0, 1.39626, 0.0 ; // validate with q_test in Matlab
-    // q_ << -1.98968, -0.383972, -2.87979, -1.5708, 4.20539e-17, 1.39626, 0;
-    // Matrix<double,7,1> q_add;
     Matrix<double,7,3> q_goal_traj;
-    // q_goal<<-0.000545241, -0.787773, -0.00212514, -2.3583, 0.5, 1.57543, 0.795024;
-    // q_goal << -0.5, -0.787773, -0.5, -2.3583, 0.5, 1.57543, 0.0;
-    // q_goal_traj.col(0)<<-0.5, -0.787773, -0.5, -2.3583, 0.5, 1.57543, 0.0;
-    // q_goal_traj.col(1)<<0.3, -0.787773, -0.5, -2.3583, 0.5, 1.57543, 0.0;
-    // q_goal_traj.col(2)<<0.3, -0.787773, -0.5, -2.3583, 0.9, 1.57543, 0.0;
-
-    // q_goal << -pi/2.0, 0.004, 0.0, -1.57156, 0.0, 1.57075, 0.0;
-    // q_goal << 0.519784, 0.991963, 1.50832, -1.54527, -1.2189, 0.878087, 0.0;
 
     // joint velocity bounds
     Matrix<double, 7, 1> dq_min = robot.get_lower_q_dot_limit();
@@ -88,8 +49,6 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
     // // Auxiliar variables
     double dt = 1E-3;	// Time step
     int nbIter = 1; // Number of iterations (orig: 65)
-    // int nbData = 1; // no trajectory
-    // int t_all = nbIter*nbData;
 
     // Desired cartesian and manipulability pos/trajectory
     MatrixXd J_goal;
@@ -106,12 +65,6 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
     Me_d = J_geom_goal*J_geom_goal.transpose();
 
     // Initialization dq q_track M ev_diff
-    // Vector3d inf_min;
-    // inf_min.setConstant(1e-10);
-    // MatrixXd qt_track(7,nbIter);
-    // MatrixXd dq_track(7,nbIter);
-    // MatrixXd x_t_track(3,nbIter);
-    Matrix<double,7,1> dq_res_1;
     Matrix<double,7,1> dq_res;
     MatrixXd J;
     MatrixXd J_geom;
@@ -138,7 +91,7 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
     Matrix<double, 7, 6> I_76;
     I_76.setIdentity();
     // equality constraint right part
-    Vector3d dxr;
+    Matrix<double, 6, 1> dxr;
     Matrix<double, 6, 1> dx_guid;
 
     // std::cout << "Starting control loop-------------------------------------------------" << std::endl;
@@ -153,7 +106,19 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
         // Matrix4d tfm = dq2tfm(xt);
         // cartesian position
         Vector3d xt_t = xt.translation().vec3();
-        // std::cout<<"xt: "<<xt_t<<std::endl;
+        Vector4d xt_r = xt.rotation().vec4();
+        Quaterniond rotationQuaternion(xt_r(0), xt_r(1), xt_r(2), xt_r(3));
+        // Convert the rotation quaternion into a 3x3 rotation matrix
+        Matrix3d rotationMatrix = rotationQuaternion.toRotationMatrix();
+        double roll, pitch, yaw;
+        roll = atan2(rotationMatrix(2, 1), rotationMatrix(2, 2));
+        pitch = atan2(-rotationMatrix(2, 0), sqrt(rotationMatrix(2, 1) * rotationMatrix(2, 1) + rotationMatrix(2, 2) * rotationMatrix(2, 2)));
+        yaw = atan2(rotationMatrix(1, 0), rotationMatrix(0, 0));
+        Matrix<double, 6, 1> xt_6;
+        xt_6(0,0)= roll;
+        xt_6(1,0)= pitch;
+        xt_6(2,0)= yaw;
+        xt_6.block(3,0,3,1) = xt_t;
 
         // x_t_track.col(i) = xt_t;
         // Vector3d x_goal = x_t_track.col(0);
@@ -216,39 +181,19 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
         // ++++++++++++++++++++QP Controller using osqp-eigen+++++++++++++++++++++++++++++++++
         // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
         // Cost Function: Hessian matrix H and Gradient f
-        // constexpr double tolerance = 1e-4;
-        // Intergral term + Damping term
-        // Matrix<double, 6, 1> admittance_signal = - K_adm * F_ext ;
-        // - D_adm * (dx - dx_last)
-        Matrix<double, 7, 1> admittance_signal = - tau_ext;
-        std::vector<double> ev_vec(ev_t.data(), ev_t.data() + ev_t.rows() * ev_t.cols());
-        double ev_min_value = *std::min_element(ev_vec.begin(), ev_vec.end());
-        
-        // slack variable to avoid huge inv(J)
-        double lambda;
-        if (ev_min_value < 0.02){
-            lambda = 0.001;
-        }else{
-            lambda = 0;
-        }
-        Matrix<double, 6, 7> J_map = (J_geom.transpose()+lambda*I_76).completeOrthogonalDecomposition().pseudoInverse();
-        // Matrix<double, 7, 7> NS_projector = I - J_geom.completeOrthogonalDecomposition().pseudoInverse() * J_geom;
-        // Matrix<double, 7, 6> J_inv = J_geom.completeOrthogonalDecomposition().pseudoInverse();
-        // Matrix<c_float, 7, 7> H = 0*Jm_t.transpose()*Jm_t + J_geom.transpose()*J_geom;
-        Matrix<c_float, 7, 7> H = 0*Jm_t.transpose()*Jm_t + I;
+        Matrix<c_float, 7, 7> H = Jm_t.transpose()*Jm_t;
         // std::cout<<"Calculated F: "<< (J_map * tau_ext).transpose()<<std::endl;
-
         H_s = H.sparseView();
         // std::cout<<"H: "<<std::endl<<H<<std::endl;
         H_s.pruned(1e-9); // set those who smaller than 0.01 as zero
         // std::cout<<"H_S : "<<std::endl<<H_s<<std::endl;
         // Matrix<c_float, 1, 7> f = -0*K_qp* vec_M_diff.transpose()*Jm_t - 2*admittance_signal.transpose()*J_geom;
-        Matrix<c_float, 1, 7> f = -0*K_qp* vec_M_diff.transpose()*Jm_t - 2*admittance_signal.transpose()*J_map.transpose()*K_adm*J_geom; // 
+        Matrix<c_float, 1, 7> f = -K_qp* vec_M_diff.transpose()*Jm_t; // 
 
         // Initialize matrices for constraints
-        Matrix<c_float, 17, 1> lb;
-        Matrix<c_float, 17, 7> A;
-        Matrix<c_float, 17, 1> ub;
+        Matrix<c_float, 20, 1> lb;
+        Matrix<c_float, 20, 7> A;
+        Matrix<c_float, 20, 1> ub;
         // Constraints:
         // 1. Inequality Constraint:---------------------------------------
         // set min. allowed eigenvalue (min. ellipsoid axis length)
@@ -265,18 +210,18 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
 
         // 2. Equality Constraint for cartesian tracking-------------------
         // tune the gain! To give cartesian tracking some space
-        dxr = (x_desired - xt_t) * K_dx;
-        // lb.block(6,0,3,1) = dxr; 
-        // A.block(6,0,3,7) = J_geom_t;
-        // ub.block(6,0,3,1) = dxr;
-        lb.block(6,0,3,1).setZero(); 
-        A.block(6,0,3,7).setZero();
-        ub.block(6,0,3,1).setZero();
+        dxr = (x_desired - xt_6) * K_dx;
+        lb.block(6,0,6,1) = dxr; 
+        A.block(6,0,6,7) = J_geom;
+        ub.block(6,0,6,1) = dxr;
+        // lb.block(6,0,3,1).setZero(); 
+        // A.block(6,0,3,7).setZero();
+        // ub.block(6,0,3,1).setZero();
 
         // 3. Equality Constraint for single axis ME tracking--------------
-        lb.block(9,0,1,1).setZero();
-        A.block(9,0,1,7).setZero();
-        ub.block(9,0,1,1).setZero();
+        lb.block(12,0,1,1).setZero();
+        A.block(12,0,1,7).setZero();
+        ub.block(12,0,1,1).setZero();
         // lb.block(9,0,1,1) = M_diff_axis;
         // A.block(9,0,1,7) = Jm_t_axis;
         // ub.block(9,0,1,1) = M_diff_axis;
@@ -322,12 +267,12 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
         lb_limits = M_lb.rowwise().maxCoeff();
         VectorXd ub_limits;
         ub_limits = M_ub.rowwise().minCoeff();
-        lb.block(10,0,7,1) = lb_limits;
-        A.block(10,0,7,7) = I;
-        ub.block(10,0,7,1) = ub_limits;
-        // lb.block(10,0,7,1).setZero();
-        // A.block(10,0,7,7).setZero();
-        // ub.block(10,0,7,1).setZero();
+        // lb.block(13,0,7,1) = lb_limits;
+        // A.block(13,0,7,7) = I;
+        // ub.block(13,0,7,1) = ub_limits;
+        lb.block(13,0,7,1).setZero();
+        A.block(13,0,7,7).setZero();
+        ub.block(13,0,7,1).setZero();
         // --------------------------------------------------------------------
         A_s = A.sparseView();
         // std::cout<<"ub: "<<ub.transpose()<<std::endl;
@@ -336,7 +281,7 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
         solver.settings()->setAlpha(1.5); // ADMM relaxation parameter/step size/penalty parameter
         solver.data()->setNumberOfVariables(7);
         //eigenvalue (6) + x_t_tracking(3) + aixs tracking(1) + limits(7)
-        solver.data()->setNumberOfConstraints(17); 
+        solver.data()->setNumberOfConstraints(20); 
         solver.data()->setHessianMatrix(H_s);
         //solver.data()->setHessianMatrix(h_h);
         solver.data()->setGradient(f.transpose());
@@ -346,69 +291,8 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
         solver.initSolver();
         solver.solveProblem();
 
-        dq_res_1 = solver.getSolution();
-        //// Second QP ////////////////////////////////////////////////////////////////////////////
-        // Cost Function: Hessian matrix H and Gradient f
-        // velocity from 
-        Matrix<c_float, 7, 7> H_2 = Jm_t.transpose()*Jm_t;
-        H_2_s = H_2.sparseView();
-        // std::cout<<"H: "<<std::endl<<H<<std::endl;
-        H_2_s.pruned(1e-9); // set those who smaller than 0.01 as zero
-        // std::cout<<"H_S : "<<std::endl<<H_s<<std::endl;
-        // Matrix<c_float, 1, 7> f = -0*K_qp* vec_M_diff.transpose()*Jm_t - 2*admittance_signal.transpose()*J_geom;
-        Matrix<c_float, 1, 7> f_2 = -K_qp* vec_M_diff.transpose()*Jm_t; // 
-
-        // Initialize matrices for constraints
-        Matrix<c_float, 19, 1> lb_2;
-        Matrix<c_float, 19, 7> A_2;
-        Matrix<c_float, 19, 1> ub_2;
-        // Constraints:
-        // 1. Inequality Constraint:---------------------------------------
-        // set min. allowed eigenvalue (min. ellipsoid axis length)
-        lb_2.block(0,0,6,1) = v_max;
-        A_2.block(0,0,6,7) = ev_diff;
-        ub_2.block(0,0,6,1).setConstant(OsqpEigen::INFTY);
-        lb_2.block(0,0,6,1).setZero(); 
-        A_2.block(0,0,6,7).setZero();
-        ub_2.block(0,0,6,1).setZero();
-
-        // 2. Equality Constraint for cartesian tracking 
-        // (cartesian pose from guidance)-------------------
-        // tune the gain! To give cartesian tracking some space
-        dx_guid = J_geom * dq_res_1;
-        Matrix<double,6,1> I_x;
-        I_x.setIdentity();
-        lb_2.block(6,0,6,1) = dx_guid; 
-        A_2.block(6,0,6,7) = J_geom;
-        ub_2.block(6,0,6,1) = dx_guid;
-        // lb_2.block(6,0,6,1).setZero(); 
-        // A_2.block(6,0,6,7).setZero();
-        // ub_2.block(6,0,6,1).setZero();
-        lb_2.block(12,0,7,1) = lb_limits;
-        A_2.block(12,0,7,7) = I;
-        ub_2.block(12,0,7,1) = ub_limits;
-        // lb.block(10,0,7,1).setZero();
-        // A.block(10,0,7,7).setZero();
-        // ub.block(10,0,7,1).setZero();
-        // --------------------------------------------------------------------
-        
-        A_2_s = A_2.sparseView();
-        // std::cout<<"ub: "<<ub.transpose()<<std::endl;
-        OsqpEigen::Solver solver_2;
-        solver_2.settings()->setVerbosity(false); // print output or not
-        solver_2.settings()->setAlpha(1.5); // ADMM relaxation parameter/step size/penalty parameter
-        solver_2.data()->setNumberOfVariables(7);
-        solver_2.data()->setNumberOfConstraints(19); 
-        solver_2.data()->setHessianMatrix(H_2_s);
-        //solver.data()->setHessianMatrix(h_h);
-        solver_2.data()->setGradient(f_2.transpose());
-        solver_2.data()->setLinearConstraintsMatrix(A_2_s);
-        solver_2.data()->setLowerBound(lb_2);
-        solver_2.data()->setUpperBound(ub_2);
-        solver_2.initSolver();
-        solver_2.solveProblem();
-
-        dq_res = solver_2.getSolution();
+        dq_res = solver.getSolution();
+    
         ////////////////////////////////////////////////////////////////////////////////////////////
         // std::cout<<"Solution dq_t: "<<std::endl<<dq_track.col(i).transpose()<<std::endl;
         
