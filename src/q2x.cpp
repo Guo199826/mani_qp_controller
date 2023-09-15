@@ -15,6 +15,5 @@ MatrixXd q2x(const MatrixXd &q_traj, const size_t col){
         x_t_traj.col(i) = xt_t;
     }
     std::cout<<"x_t_traj: "<<x_t_traj<<std::endl;
-    
     return x_t_traj;
 }

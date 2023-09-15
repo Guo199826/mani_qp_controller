@@ -10,5 +10,6 @@
 
 
 Eigen::MatrixXd load_csv (const std::string & path);
+Eigen::MatrixXd load_csv_3 (const std::string & path);
 
 #endif

@@ -68,10 +68,18 @@ namespace mani_qp_controller {
     Eigen::MatrixXd q_track;
     size_t i;
     Eigen::Matrix<double, 3, 1> F_ext_fil_last;
+    Eigen::Matrix<double, 6, 1> dx_fil_last;
+    Eigen::Matrix<double, 7, 1> dq_fil_last;
+
 
     // matrix in which the data from csv go in
     Eigen::MatrixXd joint_states_csv_;
+    Eigen::MatrixXd xt_mean_dq_traj;
+    Eigen::MatrixXd mean_traj;
+    Eigen::MatrixXd sigma_traj_3;
     Eigen::MatrixXd x_t_traj_;
+    Eigen::Matrix<double, 6, 1> dx_last;
+
     size_t col;
     // Matrix<double,7,1> q_desired;
 
