@@ -71,7 +71,6 @@ namespace mani_qp_controller {
     Eigen::Matrix<double, 6, 1> dx_fil_last;
     Eigen::Matrix<double, 7, 1> dq_fil_last;
 
-
     // matrix in which the data from csv go in
     Eigen::MatrixXd joint_states_csv_;
     Eigen::MatrixXd xt_mean_dq_traj;
@@ -79,6 +78,11 @@ namespace mani_qp_controller {
     Eigen::MatrixXd sigma_traj_3;
     Eigen::MatrixXd x_t_traj_;
     Eigen::Matrix<double, 6, 1> dx_last;
+    Eigen::MatrixXd human_jacob;
+    Eigen::MatrixXd wrist_pose;
+    Eigen::MatrixXd wrist_last;
+    Eigen::MatrixXd human_jacob_last;
+    Eigen::Tensor<double, 3> jaco_ten;
 
     size_t col;
     // Matrix<double,7,1> q_desired;

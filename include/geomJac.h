@@ -10,5 +10,6 @@ using namespace Eigen;
 using namespace DQ_robotics;
 
 MatrixXd geomJac(const DQ_SerialManipulator &robot, const MatrixXd &poseJacobian, const VectorXd &q, const int n);
+MatrixXd geomJac_human(const MatrixXd xt, const MatrixXd &poseJacobian, const VectorXd &q, const int n);
 
 #endif

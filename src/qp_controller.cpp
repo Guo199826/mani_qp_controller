@@ -6,18 +6,19 @@
 #include "../include/qp_controller.h"
 
 VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &dq_, 
-                        Index &counter, const Matrix<double,7,1> &q_desired,
+                        Index &counter, const Matrix<double,8,1> &q_desired,
                         const Matrix<double,6,1> &x_desired,
                         const Matrix<double, 8, 1> &xt_mean,
                         const Matrix<double,6,1> &dx,
-                        const Matrix<double,6,1> &dx_last)
+                        const Matrix<double,6,1> &dx_last, 
+                        const MatrixXd &geom_Jaco)
 {
     c_float K_qp = 0.5; 
     // c_float K_cart = 2;
     c_float W = 1;
     Matrix<c_float, 8, 8> W_cart;
     Matrix<c_float, 8, 8> K_cart;
-    c_float D_cart = 50;
+    // c_float D_cart = 50;
 
     Matrix<c_float, 8, 1> W_cart_vec;
     Matrix<c_float, 8, 1> K_cart_vec;
@@ -30,7 +31,7 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
     c_float K_sing = 1;
     c_float ev_min_r = 0.1;
     c_float ev_min_t = 0.02;
-    Matrix<double,7,1> q_goal;
+    Matrix<double,8,1> q_goal;
     q_goal = q_desired;
  
     // using std::chrono::high_resolution_clock;
@@ -85,10 +86,10 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
     MatrixXd Me_ct_axis;
     MatrixXd M_diff_axis;
     Matrix<double, 1, 7> J_geom_goal_axis;
-    J_goal = robot.pose_jacobian(q_goal);
-    J_geom_goal = geomJac(robot, J_goal, q_goal, n);
-    J_geom_goal_axis = J_geom_goal.row(3); // translation in x as primary tracking object
-    Me_d_axis = J_geom_goal_axis*J_geom_goal_axis.transpose();
+    J_geom_goal = geom_Jaco;
+    // J_geom_goal = geomJac_human(xt_mean, J_goal, q_goal, 8);
+    // J_geom_goal_axis = J_geom_goal.row(3); // translation in x as primary tracking object
+    // Me_d_axis = J_geom_goal_axis*J_geom_goal_axis.transpose();
     Me_d = J_geom_goal*J_geom_goal.transpose();
 
     // test ik solver (without offset to synchronize with Vrep)
@@ -154,9 +155,9 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
         // qt_track.col(i) = qt;
         // forward kinematic model
         DQ xt = robot.fkm(qt);
-        DQ xd = robot.fkm(q_desired);
+        // DQ xd = robot.fkm(q_desired);
         Matrix<double, 8, 1> xt_8 = xt.vec8();
-        Matrix<double, 8, 1> xd_8 = xd.vec8();
+        Matrix<double, 8, 1> xd_8 = xt_mean;
 
         //test coordinate with frankaros
         // std::cout<<"xt_8: ------- "<<xt_8.transpose()<<std::endl;
@@ -190,7 +191,7 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
         // std::cout<<"----------J_geom_t_axis: "<<std::endl<<J_geom_t_axis<<std::endl;
         // Current Mani and Record Me_ct into Me_track
         Me_ct = J_geom*J_geom.transpose();
-        Me_ct_axis = J_geom_t_axis*J_geom_t_axis.transpose();
+        // Me_ct_axis = J_geom_t_axis*J_geom_t_axis.transpose();
         array<DenseIndex, 3> offset = {0, 0, i};
         array<DenseIndex, 3> extent = {m, m, 1};
         Tensor<double, 3> Me_ct_tensor = TensorMap<Tensor<double, 3>>(Me_ct.data(), 6, 6, 1);
@@ -210,7 +211,7 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
 
         // Compute distance to desired manipulybility 
         M_diff = logmap(Me_d, Me_ct); // 6x6
-        M_diff_axis = logmap(Me_d_axis, Me_ct_axis); // 1
+        // M_diff_axis = logmap(Me_d_axis, Me_ct_axis); // 1
 
         vec_M_diff = spd2vec_vec(M_diff); // 21x1
         // std::cout<<"M_diff: "<<std::endl<<M_diff<<std::endl;
@@ -225,13 +226,13 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
         // ++++++++++++++++++++QP Controller using osqp-eigen+++++++++++++++++++++++++++++++++
         // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
         // constexpr double tolerance = 1e-4;
-        Matrix<c_float, 7, 7> H = 1*Jm_t.transpose()*Jm_t + 0*J.transpose() * W_cart * J;
+        Matrix<c_float, 7, 7> H =   0*Jm_t.transpose()*Jm_t + J.transpose() *W_cart *J;
         H_s = H.sparseView();
         // std::cout<<"H: "<<std::endl<<H<<std::endl;
         H_s.pruned(1e-9); // set those who smaller than 0.01 as zero
         // std::cout<<"H_S : "<<std::endl<<H_s<<std::endl;
         // Matrix<c_float, 1, 7> f = -K_qp* vec_M_diff.transpose()*Jm_t - 2 * (xd.vec8() - xt.vec8()).transpose() * J;
-        Matrix<c_float, 1, 7> f = -2*K_qp* vec_M_diff.transpose()*Jm_t - 0*2*(xt_mean - xt.vec8()).transpose()* W_cart*K_cart *J;
+        Matrix<c_float, 1, 7> f = -  0*2*K_qp* vec_M_diff.transpose()*Jm_t - 2*(xt_mean - xt.vec8()).transpose()* W_cart*K_cart *J;
         // std::cout<<"f: "<<std::endl<<f<<std::endl;
 
         // Constraints:
@@ -276,6 +277,7 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
         Matrix<c_float, 21, 1> ub;
 
         lb.block(0,0,6,1) = v_max;
+        // lb.block(0,0,6,1).setZero();
         // lb.block(13,0,1,1) = M_diff_axis;
         lb.block(9,0,1,1).setZero();
         // lb.block(14,0,7,1) = lb_limits;
@@ -284,12 +286,14 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
 
         // std::cout<<"lb: "<<lb.transpose()<<std::endl;
         A.block(0,0,6,7) = ev_diff;
+        // A.block(0,0,6,7).setZero();
         // A.block(13,0,1,7) = Jm_t_axis;
         A.block(9,0,1,7).setZero();
         // A.block(17,0,7,7) = I;
         A.block(10,0,7,7).setZero();
 
         ub.block(0,0,6,1).setConstant(OsqpEigen::INFTY);
+        // ub.block(0,0,6,7).setZero();
         // ub.block(13,0,1,1) = M_diff_axis;
         ub.block(9,0,1,1).setZero();
         // ub.block(17,0,7,1) = ub_limits;
@@ -300,11 +304,11 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
         Eigen::Matrix<double, 3, 1> I_cartesian;
         I_cartesian.setIdentity();
         // dxr_t = (x_desired.block(0,0,3,1) - xt_t) * 1;
-        dxr_t = (x_desired.block(0,0,3,1) - xt_t) * 20 ;
+        dxr_t = (x_desired.block(0,0,3,1) - xt_t) * 1 ;
         // dxr_t = -vec3(xt.translation() - xd.translation());
-        // lb.block(6,0,3,1) = dxr_t - x_desired.block(3,0,3,1);
+        // lb.block(6,0,3,1) = dxr_t - x_desired.block(3,0,3,1)*0.1;
         // A.block(6,0,3,7) = J_geom_t;
-        // ub.block(6,0,3,1) = dxr_t + x_desired.block(3,0,3,1);
+        // ub.block(6,0,3,1) = dxr_t + x_desired.block(3,0,3,1)*0.1;
 
         MatrixXd lower = (dxr_t - x_desired.block(3,0,3,1));
         MatrixXd upper = (dxr_t + x_desired.block(3,0,3,1));
@@ -318,7 +322,6 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
         lb.block(6,0,3,1).setZero();
         A.block(6,0,3,7).setZero();
         ub.block(6,0,3,1).setZero();
-
 
         // Matrix<double, 3, 1> dxr_Jr;
         // dxr_Jr = -vec3(log(xt.rotation().conj()*xd.rotation()));
@@ -373,14 +376,7 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
         solver.initSolver();
         solver.solveProblem();
         dq_res = solver.getSolution();
-        // DQ_PseudoinverseController test_controller(robot_ptr);
-        // test_controller.set_gain(0.5);
-        // test_controller.set_damping(0.05);
-        // test_controller.set_control_objective(Pose);
-        // test_controller.set_stability_threshold(0.00001);
-        // std::cout<<"dq_res_2: "<<dq_res.transpose()<<std::endl;
-        // dq_res = test_controller.compute_setpoint_control_signal(qt,xd_8);
-        // std::cout<<"dq_res_3: "<<dq_res.transpose()<<std::endl;
+        
         // std::cout<<"Solution dq_t: "<<std::endl<<dq_track.col(i).transpose()<<std::endl;
 
         // for (int j = 0; j<3; j++){
