@@ -72,7 +72,25 @@ bool ManiQpController::init(hardware_interface::RobotHW* robot_hardware,
     ROS_ERROR_STREAM("MANI_QP: Exception getting state handle: " << ex.what());
     return false;
   }
-   
+
+  //////////////////////////////////////////////
+  // get parameters from yaml file
+  // if (!node_handle.getParam("k_gains", k_gains_) || k_gains_.size() != 7) {
+  //   ROS_ERROR("IEC:  Invalid or no k_gain parameters provided, aborting "
+  //             "controller init!");
+  //   return false;
+  // }
+
+  // // populate damping and stiffness matrices
+  // K.setZero();
+  // D.setZero();
+
+  // for (int i = 0; i < 7; i++) {
+  //   K(i, i) = k_gains_[i];
+  //   D(i, i) = 1.3 * sqrt(k_gains_[i]);
+  // }
+  //////////////////////////////////////////////
+
   // get robot state
   robot_state = state_handle_->getRobotState();
 
@@ -181,11 +199,12 @@ void ManiQpController::update(const ros::Time& /* time */,
   Eigen::Map<Eigen::Matrix<double, 6, 1>> dx(dx_array.data());
   // q_track.col(i) = q;
 
+  // filtered dq_output
+  Matrix<double, 7, 1> dq_fil_output;
   // filtered dq
   Matrix<double, 7, 1> dq_fil;
   // filtered dx
   Matrix<double, 6, 1> dx_fil;
-
 
   // ******************* Contributor: Yuhe Gong ******************************
   // Low Pass Filter
@@ -198,12 +217,14 @@ void ManiQpController::update(const ros::Time& /* time */,
   // Low Pass Filter: y_n = a x_n + (1 - a) * y_{n-1} = y_{n-1} + a * (x_n - y_{n-1})
   if (i == 0){
     dx_fil = dx;
+    dq_fil = dq;
   }
   else{
     dx_fil = dx_fil_last + a * (dx - dx_fil_last);
-
+    dq_fil = dq_fil_last + a * (dq - dq_fil_last);
   }
   dx_fil_last = dx_fil;
+  dq_fil_last = dq_fil;
   // **************************************************************************
 
   // // get end-effenctor translation in base frame
@@ -222,6 +243,7 @@ void ManiQpController::update(const ros::Time& /* time */,
   }
   q_desired = joint_states_csv_.col(rosbag_counter);
   Eigen::Matrix<double, 6, 1> x_desired;
+  // For Experiment 1: add cartesian position offset
   Eigen::Matrix<double, 3, 1> offset_x;
   offset_x<<0, 0.2, 0.1;
   x_desired.block(0,0,3,1) = mean_traj.col(rosbag_counter) + offset_x; 
@@ -230,22 +252,21 @@ void ManiQpController::update(const ros::Time& /* time */,
   xt_mean_full = xt_mean_dq_traj.col(rosbag_counter);
   // std::cout<<"q_desired: "<<q_desired.transpose()<<std::endl;
   // std::cout<<"x_desired: "<<x_desired.transpose()<<std::endl;
-  Eigen::VectorXd dq_mod = qp_controller(q, dq, counter, q_desired, x_desired, xt_mean_full, dx_fil, dx_last);
+  Eigen::VectorXd dq_mod = qp_controller(q, dq_fil, counter, q_desired, x_desired, xt_mean_full, dx_fil, dx_last);
   dx_last = dx_fil;
   // filter output dq_mod (joint velocity)
   if (i == 0){
-    dq_fil = dq_mod;
+    dq_fil_output = dq_mod;
   }
   else{
-    dq_fil = dq_fil_last + a * (dq_mod - dq_fil_last);
+    dq_fil_output = dq_fil_last_output + a * (dq_mod - dq_fil_last_output);
 
   }
-  dq_fil_last = dq_fil;
+  dq_fil_last_output = dq_fil_output;
   // std::cout<<"Mani_command: "<<dq_mod.transpose()<<std::endl;
   // send command to robot
-  // std::cout << "start loop" << std::endl;
   for (size_t i_ = 0; i_ < 7; ++i_) {
-    velocity_joint_handles_[i_].setCommand(dq_fil(i_));
+    velocity_joint_handles_[i_].setCommand(dq_fil_output(i_));
     // std::cout<<"Joint current velocity: "<<dq_.transpose()<<std::endl;
   }
 

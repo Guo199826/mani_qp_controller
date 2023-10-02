@@ -69,7 +69,9 @@ namespace mani_qp_controller {
     size_t i;
     Eigen::Matrix<double, 3, 1> F_ext_fil_last;
     Eigen::Matrix<double, 6, 1> dx_fil_last;
+    Eigen::Matrix<double, 7, 1> dq_fil_last_output;
     Eigen::Matrix<double, 7, 1> dq_fil_last;
+
 
     // matrix in which the data from csv go in
     Eigen::MatrixXd joint_states_csv_;

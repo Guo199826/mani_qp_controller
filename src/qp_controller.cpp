@@ -21,7 +21,9 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
 
     Matrix<c_float, 8, 1> W_cart_vec;
     Matrix<c_float, 8, 1> K_cart_vec;
-    W_cart_vec << 2, 2, 2, 2, 2, 2, 2, 2;
+    // W_cart_vec << 2, 2, 2, 2, 2, 2, 2, 2;
+    W_cart_vec << 1, 1, 1, 1, 1, 1, 1, 1;
+
     K_cart_vec << 1, 1, 1, 1, 2, 2, 2, 2;
     W_cart = W * W_cart_vec.asDiagonal();
     K_cart = K_cart_vec.asDiagonal();
@@ -65,7 +67,7 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
     Matrix<double, 7, 1> q_max = robot.get_upper_q_limit();
     // joint acceleration bounds
     Matrix<double, 7, 1> ddq_max;
-    ddq_max.setConstant(10); // original: 500
+    ddq_max.setConstant(0.2); // original: 500
     Matrix<double, 7, 1> dq_min_q;
     Matrix<double, 7, 1> dq_max_q;
     Matrix<double, 7, 1> dq_min_ddq;
@@ -225,115 +227,128 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
         // ++++++++++++++++++++QP Controller using osqp-eigen+++++++++++++++++++++++++++++++++
         // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
         // constexpr double tolerance = 1e-4;
+        // Initialization
+        Matrix<c_float, 31, 1> lb;
+        Matrix<c_float, 31, 7> A;
+        Matrix<c_float, 31, 1> ub;
+
         Matrix<c_float, 7, 7> H = 1*Jm_t.transpose()*Jm_t + J.transpose() * W_cart * J;
         H_s = H.sparseView();
         // std::cout<<"H: "<<std::endl<<H<<std::endl;
-        H_s.pruned(1e-9); // set those who smaller than 0.01 as zero
+        H_s.pruned(1e-9); // set those smaller than 0.01 as zero
         // std::cout<<"H_S : "<<std::endl<<H_s<<std::endl;
         // Matrix<c_float, 1, 7> f = -K_qp* vec_M_diff.transpose()*Jm_t - 2 * (xd.vec8() - xt.vec8()).transpose() * J;
-        Matrix<c_float, 1, 7> f = -2*K_qp* vec_M_diff.transpose()*Jm_t - 2*(xt_mean - xt.vec8()).transpose()* W_cart*K_cart *J;
+
+        // For Experiment 1: add cartesian position offset
+        // To showcase the manipulability adapting
+        Matrix<double, 3, 1> x_offset = x_desired.block(0,0,3,1);
+        DQ xt_offset_t = DQ(x_offset);
+        DQ xt_mean_r = DQ(xt_mean.block(0,0,4,1));
+        DQ xt_obj = xt_mean_r + E_ * 0.5 * xt_offset_t * xt_mean_r;
+        Matrix<c_float, 1, 7> f = -2*K_qp* vec_M_diff.transpose()*Jm_t - 2*(xt_obj.vec8() - xt.vec8()).transpose()* W_cart*K_cart *J;
         // std::cout<<"f: "<<std::endl<<f<<std::endl;
 
-        // Constraints:
+        // Constraints:////////////////////////////////////////////////////
         // 1. set min. allowed eigenvalue (min. ellipsoid axis length)
-        Matrix<c_float, 6,1> ev_min;
-        Matrix<c_float, 6,1> v_max;
+        Matrix<c_float, 6, 1> ev_min;
+        Matrix<c_float, 6, 1> v_max;
         ev_min << ev_min_r, ev_min_r, ev_min_r, ev_min_t, ev_min_t, ev_min_t;
-        v_max = (ev_min - ev_t)*K_sing;
-        // Bounds
-        // Regarding joint position:
-        dq_min_q = (q_min-qt)*0.00001;
-        dq_max_q = (q_max-qt)*0.00001;
-        // Regarding joint acceleration:
-        if (i == 0){
-            dq_min_ddq = -ddq_max*2;
-            dq_max_ddq = ddq_max*2;
-        }
-        else {
-            dq_min_ddq = dq_ - ddq_max * dt ;
-            dq_max_ddq = dq_ + ddq_max * dt ;
-        }
-        Matrix<double, 7, 3> M_lb;
-        Matrix<double, 7, 3> M_ub;
-        M_lb.block(0,0,7,1) = dq_min_q;
-        M_lb.block(0,1,7,1) = dq_min;
-        M_lb.block(0,2,7,1) = dq_min_ddq;
-        M_ub.block(0,0,7,1) = dq_max_q;
-        M_ub.block(0,1,7,1) = dq_max;
-        M_ub.block(0,2,7,1) = dq_max_ddq;
-        // std::cout<<"M_lb: "<<std::endl<<M_lb<<std::endl;
-        // std::cout<<"M_ub: "<<std::endl<<M_ub<<std::endl;
-        
-        VectorXd lb_limits;
-        lb_limits = M_lb.rowwise().maxCoeff();
-        VectorXd ub_limits;
-        ub_limits = M_ub.rowwise().minCoeff();
-        // std::cout<<"lb_limits: "<<std::endl<<lb_limits<<std::endl;
-        // std::cout<<"ub_limits: "<<std::endl<<ub_limits<<std::endl;
-
-        Matrix<c_float, 21, 1> lb;
-        Matrix<c_float, 21, 7> A;
-        Matrix<c_float, 21, 1> ub;
-
+        v_max = (ev_min - ev_t) * K_sing;
         lb.block(0,0,6,1) = v_max;
-        // lb.block(13,0,1,1) = M_diff_axis;
-        lb.block(9,0,1,1).setZero();
-        // lb.block(14,0,7,1) = lb_limits;
-        // lb.block(17,0,7,1) = dq_min_q;
-        lb.block(10,0,7,1).setZero();
-
-        // std::cout<<"lb: "<<lb.transpose()<<std::endl;
         A.block(0,0,6,7) = ev_diff;
-        // A.block(13,0,1,7) = Jm_t_axis;
-        A.block(9,0,1,7).setZero();
-        // A.block(17,0,7,7) = I;
-        A.block(10,0,7,7).setZero();
-
         ub.block(0,0,6,1).setConstant(OsqpEigen::INFTY);
-        // ub.block(13,0,1,1) = M_diff_axis;
-        ub.block(9,0,1,1).setZero();
-        // ub.block(17,0,7,1) = ub_limits;
-        // ub.block(17,0,7,1) = dq_max_q;
-        ub.block(10,0,7,1).setZero();
 
-        // Cartesian translation tracking
+        // 2. cartesian translation interval given by ProMP
         Eigen::Matrix<double, 3, 1> I_cartesian;
         I_cartesian.setIdentity();
         // dxr_t = (x_desired.block(0,0,3,1) - xt_t) * 1;
-        dxr_t = (x_desired.block(0,0,3,1) - xt_t) * 1 ;
+        // dxr_t = (x_desired.block(0,0,3,1) - xt_t) * 1 ;
         // dxr_t = -vec3(xt.translation() - xd.translation());
-        lb.block(6,0,3,1) = dxr_t - x_desired.block(3,0,3,1)*0.1;
-        A.block(6,0,3,7) = J_geom_t;
-        ub.block(6,0,3,1) = dxr_t + x_desired.block(3,0,3,1)*0.1;
+        // lb.block(6,0,3,1) = dxr_t - x_desired.block(3,0,3,1)*0.1;
+        // A.block(6,0,3,7) = J_geom_t;
+        // ub.block(6,0,3,1) = dxr_t + x_desired.block(3,0,3,1)*0.1;
+        lb.block(6,0,3,1).setZero();
+        A.block(6,0,3,7).setZero();
+        ub.block(6,0,3,1).setZero();
 
-        MatrixXd lower = (dxr_t - x_desired.block(3,0,3,1));
-        MatrixXd upper = (dxr_t + x_desired.block(3,0,3,1));
-
+        // MatrixXd lower = (dxr_t - x_desired.block(3,0,3,1));
+        // MatrixXd upper = (dxr_t + x_desired.block(3,0,3,1));
         // lb.block(6,0,3,1) = lower;
         // A.block(6,0,3,7) = J_geom_t;
         // ub.block(6,0,3,1) = upper;
         // + D_cart * (dx.block(0,0,3,1) - dx_last.block(0,0,3,1));
         // + D_cart * (dx.block(0,0,3,1) - dx_last.block(0,0,3,1));
 
-        // lb.block(6,0,3,1).setZero();
-        // A.block(6,0,3,7).setZero();
-        // ub.block(6,0,3,1).setZero();
+        // 3. prioritize manip tracking of one axis
+        // lb.block(9,0,1,1) = M_diff_axis;
+        // A.block(9,0,1,7) = Jm_t_axis;
+        // ub.block(9,0,1,1) = M_diff_axis;
+        lb.block(9,0,1,1).setZero();
+        A.block(9,0,1,7).setZero();
+        ub.block(9,0,1,1).setZero();
+
+        // Bounds /////////////////////////////////////////////////////
+        // a. Regarding joint position (tested):
+        dq_min_q = (q_min-qt) * 1;
+        dq_max_q = (q_max-qt) * 1;
+        lb.block(10,0,7,1) = dq_min_q;
+        A.block(10,0,7,7) = I;
+        ub.block(10,0,7,1) = dq_max_q;
+        // lb.block(10,0,7,1).setZero();
+        // A.block(10,0,7,7).setZero();
+        // ub.block(10,0,7,1).setZero();
+
+        // b. Regarding joint velocity limit (tested):
+        lb.block(17,0,7,1) = dq_min;
+        A.block(17,0,7,7) = I;
+        ub.block(17,0,7,1) = dq_max;
+        // lb.block(17,0,7,1).setZero();
+        // A.block(17,0,7,7).setZero();
+        // ub.block(17,0,7,1).setZero();
+
+        // c. Regarding joint acceleration:
+        dq_min_ddq = dq_ - ddq_max * 0.1 ; // dt
+        dq_max_ddq = dq_ + ddq_max * 0.1 ; // dt
+
+        lb.block(24,0,7,1) = dq_min_ddq;
+        A.block(24,0,7,7)= I;
+        ub.block(24,0,7,1) = dq_max_ddq;
+        // lb.block(24,0,7,1).setZero();
+        // A.block(24,0,7,7).setZero();
+        // ub.block(24,0,7,1).setZero();
+        // std::cout<<"lb_limits: "<<std::endl<<lb_limits<<std::endl;
+        // std::cout<<"ub_limits: "<<std::endl<<ub_limits<<std::endl;
+
+        // Matrix<double, 7, 3> M_lb;
+        // Matrix<double, 7, 3> M_ub;
+        // M_lb.block(0,0,7,1) = dq_min_q;
+        // M_lb.block(0,1,7,1) = dq_min;
+        // M_lb.block(0,2,7,1) = dq_min_ddq;
+        // M_ub.block(0,0,7,1) = dq_max_q;
+        // M_ub.block(0,1,7,1) = dq_max;
+        // M_ub.block(0,2,7,1) = dq_max_ddq;
+        // std::cout<<"M_lb: "<<std::endl<<M_lb<<std::endl;
+        // std::cout<<"M_ub: "<<std::endl<<M_ub<<std::endl;
+        // VectorXd lb_limits;
+        // lb_limits = M_lb.rowwise().maxCoeff();
+        // VectorXd ub_limits;
+        // ub_limits = M_ub.rowwise().minCoeff();
 
         // Matrix<double, 3, 1> dxr_Jr;
         // dxr_Jr = -vec3(log(xt.rotation().conj()*xd.rotation()));
-        Matrix<double, 4, 1> dxr_Jr;
-        dxr_Jr = xt_mean.block(0,0,4,1) - xt.rotation().vec4();
+        // Matrix<double, 4, 1> dxr_Jr;
+        // dxr_Jr = xt_mean.block(0,0,4,1) - xt.rotation().vec4();
         // lb.block(17,0,4,1) = dxr_Jr;
         // A.block(17,0,4,7) = J_geom_r;
         // ub.block(17,0,4,1) = dxr_Jr;
-        lb.block(17,0,4,1).setZero();
-        A.block(17,0,4,7).setZero();
-        ub.block(17,0,4,1).setZero();
+        // lb.block(17,0,4,1).setZero();
+        // A.block(17,0,4,7).setZero();
+        // ub.block(17,0,4,1).setZero();
 
         // Cartesian rotation tracking
-        double damping = 0.05;
-        double gain = 2.5;
-        Matrix<double, 7, 1> dxr_pseudo;
+        // double damping = 0.05;
+        // double gain = 2.5;
+        // Matrix<double, 7, 1> dxr_pseudo;
         // MatrixXd J_r = robot.rotation_jacobian(J);
         // dxr_pseudo = (J.transpose()*J + damping*damping*MatrixXd::Identity(7, 7)).inverse()*
         //         J.transpose() * (-gain * vec8(xt - xd));
@@ -362,7 +377,7 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
         solver.settings()->setAlpha(1.5); // ADMM relaxation parameter/step size/penalty parameter
         solver.data()->setNumberOfVariables(7);
         //eigenvalue (6) + x_t_tracking(3) + aixs tracking(1) + limits(7)
-        solver.data()->setNumberOfConstraints(21); 
+        solver.data()->setNumberOfConstraints(31); 
         solver.data()->setHessianMatrix(H_s);
         //solver.data()->setHessianMatrix(h_h);
         solver.data()->setGradient(f.transpose());
