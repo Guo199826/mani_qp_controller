@@ -59,7 +59,6 @@ namespace DQ_robotics
 
     DQ FrankaRobot::_get_offset_base()
     {
-        // DQ result(0.006, 0.79, 0.383, 0, 0, 0, 0, 0);
         // return 1 + E_ * 0.5 * DQ(0, 0.0413, 0, 0);
         // return 0.006+0.79*i_+ 0.383*j_+0*k_ + E_ * 0.5 * DQ(0, 0, 0, 0);
         return 1+ E_ * DQ(0, 0, 0, 0);
@@ -69,7 +68,12 @@ namespace DQ_robotics
     DQ FrankaRobot::_get_offset_flange()
     {
         // return 1+E_*0.5*k_*1.07e-1;  // 0.5??????
-        return 1+E_*0.5*k_*(1.07e-1 + 0.1034);  // 0.5??????
+        // return 1+E_*0.5*k_*(1.07e-1 + 0.1034);  // 0.5??????
+        DQ frame = 1+E_*0.5*k_*(1.07e-1 + 0.1034);
+        DQ transform_45deg = DQ(0.9238795, 0, 0, -0.3826834).normalize();
+        DQ frame_new = transform_45deg + 0.5 * E_ *k_*(1.07e-1 + 0.1034) * transform_45deg;
+
+        return frame_new;
 
     }
 

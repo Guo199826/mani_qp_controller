@@ -4,11 +4,13 @@
 
 #include <cmath>
 #include <iostream>
+#include <fstream>
 #include <string>
 #include <array>
 
 #include <vector>
 #include <eigen3/Eigen/Dense>
+#include <eigen3/Eigen/Geometry>
 #include <ros/ros.h>
 #include <ros/package.h>
 #include <controller_interface/controller_base.h>
@@ -23,6 +25,7 @@
 #include <ros/time.h>
 #include "../include/qp_controller.h"
 #include "../include/adm_controller.h"
+#include "../include/save_data.h"
 #include "convert_csv2matrix.h"
 // #include "q2x.h"
 #include <franka_hw/franka_cartesian_command_interface.h>
@@ -73,6 +76,7 @@ namespace mani_qp_controller {
     Eigen::Matrix<double, 4, 4> O_T_EE_init;
     Eigen::Matrix<double, 3, 3> O_R_EE_init;
     Eigen::Matrix<double, 6, 1> F_ext_fil_last;
+    Eigen::Matrix<double, 7, 1> dq_fil_last;
     Eigen::Matrix<double, 7, 1> tau_ext_fil_last;
 
 
@@ -88,6 +92,9 @@ namespace mani_qp_controller {
     bool tracking;   
     std::string adm_controller;
     Eigen::Matrix<double, 6, 1> dx_last;
+
+    Eigen::MatrixXd save_Cartesian;
+    //DQ_SerialManipulatorMDH robot;
   };
 
 }  // namespace mani_qp_controller

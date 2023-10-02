@@ -7,8 +7,8 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
                         const MatrixXd &tau_ext)
 {
     // Gain Tunning //////////////////////////////////////////////////
-    c_float K_qp = 2; // for cost function
-    c_float K_dx = 1; // for cartesian tracking
+    c_float K_qp = 1; // for cost function
+    c_float K_dx = 0.2; // for cartesian tracking
     c_float K_sing = 1; // for min. eigenvalue
     // set min. allowed eigenvalue (min. ellipsoid axis length)
     c_float ev_min_r = 0.02;
@@ -110,10 +110,14 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
         Quaterniond rotationQuaternion(xt_r(0), xt_r(1), xt_r(2), xt_r(3));
         // Convert the rotation quaternion into a 3x3 rotation matrix
         Matrix3d rotationMatrix = rotationQuaternion.toRotationMatrix();
+        Eigen::Vector3d Euler = rotationMatrix.eulerAngles(2,1,0);    
         double roll, pitch, yaw;
-        roll = atan2(rotationMatrix(2, 1), rotationMatrix(2, 2));
-        pitch = atan2(-rotationMatrix(2, 0), sqrt(rotationMatrix(2, 1) * rotationMatrix(2, 1) + rotationMatrix(2, 2) * rotationMatrix(2, 2)));
-        yaw = atan2(rotationMatrix(1, 0), rotationMatrix(0, 0));
+        // roll = atan2(rotationMatrix(2, 1), rotationMatrix(2, 2));
+        // pitch = atan2(-rotationMatrix(2, 0), sqrt(rotationMatrix(2, 1) * rotationMatrix(2, 1) + rotationMatrix(2, 2) * rotationMatrix(2, 2)));
+        // yaw = atan2(rotationMatrix(1, 0), rotationMatrix(0, 0));
+        roll = Euler(0);
+        pitch = Euler(1);
+        yaw = Euler(2);
         Matrix<double, 6, 1> xt_6;
         xt_6(0,0)= roll;
         xt_6(1,0)= pitch;
@@ -214,9 +218,9 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
         lb.block(6,0,6,1) = dxr; 
         A.block(6,0,6,7) = J_geom;
         ub.block(6,0,6,1) = dxr;
-        // lb.block(6,0,3,1).setZero(); 
-        // A.block(6,0,3,7).setZero();
-        // ub.block(6,0,3,1).setZero();
+        // lb.block(6,0,6,1).setZero(); 
+        // A.block(6,0,6,7).setZero();
+        // ub.block(6,0,6,1).setZero();
 
         // 3. Equality Constraint for single axis ME tracking--------------
         lb.block(12,0,1,1).setZero();
@@ -233,8 +237,8 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
         // ub.block(10,0,7,1) = dq_max;
         // b. Regarding joint position: 
         // tune the gain!!!
-        dq_min_q = (q_min-qt);
-        dq_max_q = (q_max-qt);
+        dq_min_q = (q_min-qt)*100;
+        dq_max_q = (q_max-qt)*100;
         // lb.block(17,0,7,1) = dq_min_q;
         // A.block(17,0,7,7) = I;
         // ub.block(17,0,7,1) = dq_max_q;
@@ -270,6 +274,9 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
         // lb.block(13,0,7,1) = lb_limits;
         // A.block(13,0,7,7) = I;
         // ub.block(13,0,7,1) = ub_limits;
+        // lb.block(13,0,7,1) = dq_min_q;
+        // A.block(13,0,7,7) = I;
+        // ub.block(13,0,7,1) = dq_max_q;
         lb.block(13,0,7,1).setZero();
         A.block(13,0,7,7).setZero();
         ub.block(13,0,7,1).setZero();

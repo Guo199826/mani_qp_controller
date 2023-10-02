@@ -56,7 +56,7 @@ using namespace DQ_robotics;
 
 VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &dq_, 
                         Index &counter, const Matrix<double,7,1> &q_desired,
-                        const Matrix<double,6,1> &x_desired, const MatrixXd &F_ext,
+                        const Matrix<double,3,1> &x_desired, const MatrixXd &F_ext,
                         const MatrixXd &dx, const MatrixXd &dx_last,
                         const MatrixXd &tau_ext);
 

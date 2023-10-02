@@ -9,22 +9,6 @@ namespace mani_qp_controller {
 bool ManiQpController::init(hardware_interface::RobotHW* robot_hardware,
                                           ros::NodeHandle& node_handle) {
 
-  std::string t_g;
-  t_g = "tracking";
-  if (t_g == "tracking") {
-    tracking = true;
-  }
-  else if (t_g == "guidance") {
-    tracking = false;
-    // std::cout<<"Please choose a type of admittance controller (full, tran or rot):";
-    // std::cin>>adm_controller;
-    // if (!(adm_controller == "full" || adm_controller == "tran" || adm_controller == "rot")) {
-    //   ROS_ERROR("No admittance controller specified");
-    // }
-  }
-  else {
-    ROS_ERROR("No programm identified");
-  }
 
   velocity_joint_interface_ = robot_hardware->get<hardware_interface::VelocityJointInterface>();
   if (velocity_joint_interface_ == nullptr) {
@@ -152,7 +136,9 @@ bool ManiQpController::init(hardware_interface::RobotHW* robot_hardware,
   F_ext_fil_last.setZero();
 
   // get joint angle trajectory from csv
-  joint_states_csv_ = load_csv("/home/gari/mani_qp_ws_for_traj/src/mani_qp_controller/data/csv/joint_position_exam_force_traj.csv");
+  std::string path ="/home/gari/mani_tracking_test/src/mani_qp_controller/data/csv/joint_position_exp3.csv";
+  // joint_states_csv_ = load_csv("/home/gari/mani_check/src/mani_qp_controller/data/promp/q_position_mean_traj.csv");
+  joint_states_csv_ = load_csv(path);
   // joint_states_csv = joint_states_csv_;
   col = joint_states_csv_.cols();
   std::cout<<"col of matrixXd: "<<col<<std::endl;
@@ -163,34 +149,87 @@ bool ManiQpController::init(hardware_interface::RobotHW* robot_hardware,
   std::cout<<"Matrix: \n"<<joint_states_csv_.col(1).transpose()<<std::endl;
   std::cout<<"Matrix: \n"<<joint_states_csv_.col(2).transpose()<<std::endl;
   
+  MatrixXd save_Cartesian;
+  MatrixXd save_Rotation;
+  save_Cartesian.setZero();
+  save_Rotation.setZero();
+  MatrixXd save_tran;
+  MatrixXd save_rot;
   // q2xt
   DQ_SerialManipulatorMDH robot = FrankaRobot::kinematics();
-  x_t_traj_.resize(6,col);
+  x_t_traj_.resize(3,col);
   for(size_t i=0; i<col; i++){
       Eigen::Matrix<double,7,1> q = joint_states_csv_.col(i);
       // std::cout<<"q assignmnt"<< q <<std::endl;
       // forward kinematic model
       DQ xt = robot.fkm(q);
       Eigen::Matrix<double,3,1> xt_t = xt.translation().vec3();
+      x_t_traj_.col(i) = xt_t;
       Eigen::Matrix<double, 6, 1> xt_6;
       Eigen::Vector4d xt_r = xt.rotation().vec4();
-      Quaterniond rotationQuaternion(xt_r(0), xt_r(1), xt_r(2), xt_r(3));
-      // Convert the rotation quaternion into a 3x3 rotation matrix
-      Eigen::Matrix3d rotationMatrix = rotationQuaternion.toRotationMatrix();
-      double roll, pitch, yaw;
-      roll = atan2(rotationMatrix(2, 1), rotationMatrix(2, 2));
-      pitch = atan2(-rotationMatrix(2, 0), sqrt(rotationMatrix(2, 1) * rotationMatrix(2, 1) + rotationMatrix(2, 2) * rotationMatrix(2, 2)));
-      yaw = atan2(rotationMatrix(1, 0), rotationMatrix(0, 0));
-      xt_6(0,0)= roll;
-      xt_6(1,0)= pitch;
-      xt_6(2,0)= yaw;
-      xt_6.block(3,0,3,1) = xt_t;
-      x_t_traj_.col(i) = xt_6;
+      Eigen::Matrix<double, 4, 1> xr_combine;
+      // xr_combine.block(0,0,1,1) = rotation_angle(xt);
+      // xr_combine.block(1,0,3,1) = xt.rotation_axis();
 
+      // if (i==0){
+      //   save_Cartesian = xt_t;
+      //   save_Rotation = xt_r;
+      // }else {
+      //   save_Cartesian.conservativeResize(3, save_Cartesian.cols()+1);
+      //   save_Cartesian.col(save_Cartesian.cols()-1) = xt_t;
+      // }
   }
+      
+      // Eigen::Quaterniond rotationQuaternion(xt_r(0), xt_r(1), xt_r(2), xt_r(3));
+      // // Convert the rotation quaternion into a 3x3 rotation matrix
+      // Eigen::Matrix3d rotationMatrix = rotationQuaternion.toRotationMatrix();
+      // Eigen::Vector3d Euler = rotationMatrix.eulerAngles(2,1,0);
+      // double roll, pitch, yaw;
+      // roll = atan2(rotationMatrix(2, 1), rotationMatrix(2, 2));
+      // pitch = atan2(-rotationMatrix(2, 0), sqrt(rotationMatrix(2, 1) * rotationMatrix(2, 1) + rotationMatrix(2, 2) * rotationMatrix(2, 2)));
+      // yaw = atan2(rotationMatrix(1, 0), rotationMatrix(0, 0));
+      // roll = Euler(0);
+      // pitch = Euler(1);
+      // yaw = Euler(2);
+      // xt_6(0,0)= roll;
+      // xt_6(1,0)= pitch;
+      // xt_6(2,0)= yaw;
+      // xt_6.block(3,0,3,1) = xt_t;
+      // x_t_traj_.col(i) = xt_6;
+
+    // Open a CSV file for writing
+    // bool write_xt;
+    // write_xt = false;
+    // save_tran = save_Cartesian.transpose();
+    // std::ofstream file("/home/gari/mani_tracking_test/src/mani_qp_controller/data/csv/cartesian_translation03.csv");    // Check if the file is open
+    // if (write_xt){
+    //   if (file.is_open()) {
+    //       // Iterate through the matrix and write its elements to the CSV file
+    //       for (int i = 0; i < save_tran.rows(); ++i) {
+    //           for (int j = 0; j < save_tran.cols(); ++j) {
+    //               file << save_tran(i, j);
+    //               //std::cout<<"save_Cartesian(i, j): "<<save_Cartesian(i, j) <<std::endl;
+    //               // Add a comma and space except for the last element in each row
+    //               if (j < save_tran.cols() - 1) {
+    //                   file << ", ";
+    //               }
+    //           }
+    //           // Add a newline character at the end of each row
+    //           file << "\n";
+    //       }        // Close the file
+    //       file.close();
+    //       std::cout << "Matrix written to save_Cartesian.csv successfully" << std::endl;
+    //   } else {
+    //       std::cerr << "Error opening the file." << std::endl;
+    //   }
+    //   abort();
+    // }
   // x_t_traj = q2x(joint_states_csv_,col);
   // x_t_traj = x_t_traj_;
-  std::cout<<"test x_t_traj: \n"<<x_t_traj_.col(col-1).transpose()<<std::endl;
+  // Eigen::Matrix<double, 3, 1> mi;
+  // mi.setZero();
+  // save_Cartesian = mi;
+  // std::cout<<"test x_t_traj: \n"<<x_t_traj_.col(col-1).transpose()<<std::endl;
   
   return true;
 }
@@ -215,7 +254,12 @@ void ManiQpController::update(const ros::Time& /* time */,
   // get joint position
   std::array<double, 7> q_array = robot_state.q;
   Eigen::Map<Eigen::Matrix<double, 7, 1>> q(q_array.data());
-  
+  DQ_SerialManipulatorMDH robot = FrankaRobot::kinematics();
+  DQ xt = robot.fkm(q);
+  Eigen::Matrix<double, 3, 1> xt_t = xt.translation().vec3();
+
+  // filtered dq
+  Eigen::Matrix<double, 7, 1> dq_fil;
   // q_track.col(i) = q;
 
   // get external force & torque
@@ -226,7 +270,7 @@ void ManiQpController::update(const ros::Time& /* time */,
   F_ext.block(3,0,3,1)= F_ext_6D.col(0); // get force
   MatrixXd F_ext_fil;
   MatrixXd tau_ext_fil;
-  double F_ext_threshold = 0;
+  double F_ext_threshold = 5;
   std::array<double, 7> gravity_array = model_handle_->getGravity();;
   Eigen::Map<Eigen::Matrix<double, 7, 1>> Gravity(gravity_array.data());
   std::array<double, 7> tau_ext_array = robot_state.tau_J;
@@ -261,7 +305,6 @@ void ManiQpController::update(const ros::Time& /* time */,
     //F_ext_fil = tau_ext_hat_filtered;
     F_ext_fil_last.setZero();
     tau_ext_fil_last.setZero();
-
   }
   else{
     F_ext_fil = F_ext_fil_last + a * (F_ext - F_ext_fil_last);
@@ -273,6 +316,7 @@ void ManiQpController::update(const ros::Time& /* time */,
   // std::cout<<"Measured F: "<<F_ext_fil.transpose()<<std::endl;
   F_Inter = F_ext_fil + 0.1 * F_ext_fil_last;
   tau_Inter = tau_ext_fil + 0.1 * tau_ext_fil_last;
+
   // **************************************************************************
 
   // ROS_INFO_STREAM("Joint current position: "<<q.transpose());
@@ -309,7 +353,7 @@ void ManiQpController::update(const ros::Time& /* time */,
 
   // std::cout<<"counter: "<<rosbag_counter<<std::endl;
   q_desired = joint_states_csv_.col(rosbag_counter);
-  Eigen::Matrix<double, 6, 1> x_desired = x_t_traj_.col(rosbag_counter); 
+  Eigen::Matrix<double, 3, 1> x_desired = x_t_traj_.col(rosbag_counter); 
   // std::cout<<"q_desired: "<<q_desired.transpose()<<std::endl;
   // std::cout<<"x_desired: "<<x_desired.transpose()<<std::endl;
   Eigen::VectorXd dq_mod;
@@ -321,22 +365,21 @@ void ManiQpController::update(const ros::Time& /* time */,
   J_franka_.block(3,0,3,7) = J_franka.block(0,0,3,7);
   // std::cout<<"J_franka: "<< std::endl<<J_franka_<<std::endl;
 
-  if(tracking){
-    dq_mod = qp_controller(q, dq, counter, q_desired, x_desired, F_Inter, dx, dx_last, tau_Inter);
-    F_ext_fil_last = F_ext_fil;
-    tau_ext_fil_last = tau_ext_fil;
-    dx_last = dx;
-    // std::cout<<"Mani_command: "<<dq_mod.transpose()<<std::endl;
-    if (rosbag_counter >= col-1){
-      ros::shutdown();
-    }
-    for (size_t i_ = 0; i_ < 7; ++i_) {
-      velocity_joint_handles_[i_].setCommand(dq_mod(i_));
-    }
-  } 
-    // for (size_t i = 0; i < 7; ++i) {
-    //   joint_handles_[i].setCommand(dq_mod(i));
-    //   }
+  dq_mod = qp_controller(q, dq, counter, q_desired, x_desired, F_Inter, dx, dx_last, tau_Inter);
+  F_ext_fil_last = F_ext_fil;
+  tau_ext_fil_last = tau_ext_fil;
+  dx_last = dx;
+  // std::cout<<"Mani_command: "<<dq_mod.transpose()<<std::endl;
+  // if (rosbag_counter >= col-1){      
+  //   ros::shutdown();
+  // }
+  for (size_t i_ = 0; i_ < 7; ++i_) {
+    velocity_joint_handles_[i_].setCommand(dq_mod(i_));
+  }
+
+  // for (size_t i = 0; i < 7; ++i) {
+  //   joint_handles_[i].setCommand(dq_mod(i));
+  //   }
 
   // std::cout<<"Joint current velocity: "<<dq_mod.transpose()<<std::endl;
 
@@ -356,8 +399,8 @@ void ManiQpController::update(const ros::Time& /* time */,
   //   // std::cout<<"omega: "<<omega<<std::endl;
   //   std::array<double, 7> dq_array_ = robot_state.dq;
   //   Eigen::Map<Eigen::Matrix<double, 7, 1>> dq_(dq_array_.data());
-    // std::cout<<"Joint current velocity: "<<dq.transpose()<<std::endl;
-    // }
+  //   std::cout<<"Joint current velocity: "<<dq.transpose()<<std::endl;
+  //   }
   i++;
   
 }
@@ -366,7 +409,7 @@ void ManiQpController::stopping(const ros::Time& /*time*/) {
   // WARNING: DO NOT SEND ZERO VELOCITIES HERE AS IN CASE OF ABORTING DURING MOTION
   // A JUMP TO ZERO WILL BE COMMANDED PUTTING HIGH LOADS ON THE ROBOT. LET THE DEFAULT
   // BUILT-IN STOPPING BEHAVIOR SLOW DOWN THE ROBOT.
-  std::cout<<"stopping() running... "<<std::endl;
+  // std::cout<<"stopping() running... "<<std::endl;
 }
 
 }  // namespace franka_example_controllers

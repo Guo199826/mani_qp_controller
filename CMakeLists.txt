@@ -142,8 +142,8 @@ include_directories(
 ## Declare a C++ library
 add_library(${PROJECT_NAME}
   src/mani_qp_controller.cpp
-  # src/qp_controller.cpp
-  src/qp_controller_mani_cart.cpp
+  src/qp_controller.cpp
+  # src/qp_controller_mani_cart.cpp
   src/jacobianEst.cpp
   src/jacobianEstVector.cpp
   src/geomJac.cpp
