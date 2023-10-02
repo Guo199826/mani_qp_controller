@@ -225,13 +225,13 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
         // ++++++++++++++++++++QP Controller using osqp-eigen+++++++++++++++++++++++++++++++++
         // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
         // constexpr double tolerance = 1e-4;
-        Matrix<c_float, 7, 7> H = 1*Jm_t.transpose()*Jm_t + 0*J.transpose() * W_cart * J;
+        Matrix<c_float, 7, 7> H = 1*Jm_t.transpose()*Jm_t + J.transpose() * W_cart * J;
         H_s = H.sparseView();
         // std::cout<<"H: "<<std::endl<<H<<std::endl;
         H_s.pruned(1e-9); // set those who smaller than 0.01 as zero
         // std::cout<<"H_S : "<<std::endl<<H_s<<std::endl;
         // Matrix<c_float, 1, 7> f = -K_qp* vec_M_diff.transpose()*Jm_t - 2 * (xd.vec8() - xt.vec8()).transpose() * J;
-        Matrix<c_float, 1, 7> f = -2*K_qp* vec_M_diff.transpose()*Jm_t - 0*2*(xt_mean - xt.vec8()).transpose()* W_cart*K_cart *J;
+        Matrix<c_float, 1, 7> f = -2*K_qp* vec_M_diff.transpose()*Jm_t - 2*(xt_mean - xt.vec8()).transpose()* W_cart*K_cart *J;
         // std::cout<<"f: "<<std::endl<<f<<std::endl;
 
         // Constraints:
@@ -300,11 +300,11 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
         Eigen::Matrix<double, 3, 1> I_cartesian;
         I_cartesian.setIdentity();
         // dxr_t = (x_desired.block(0,0,3,1) - xt_t) * 1;
-        dxr_t = (x_desired.block(0,0,3,1) - xt_t) * 20 ;
+        dxr_t = (x_desired.block(0,0,3,1) - xt_t) * 1 ;
         // dxr_t = -vec3(xt.translation() - xd.translation());
-        // lb.block(6,0,3,1) = dxr_t - x_desired.block(3,0,3,1);
-        // A.block(6,0,3,7) = J_geom_t;
-        // ub.block(6,0,3,1) = dxr_t + x_desired.block(3,0,3,1);
+        lb.block(6,0,3,1) = dxr_t - x_desired.block(3,0,3,1)*0.1;
+        A.block(6,0,3,7) = J_geom_t;
+        ub.block(6,0,3,1) = dxr_t + x_desired.block(3,0,3,1)*0.1;
 
         MatrixXd lower = (dxr_t - x_desired.block(3,0,3,1));
         MatrixXd upper = (dxr_t + x_desired.block(3,0,3,1));
@@ -315,10 +315,9 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
         // + D_cart * (dx.block(0,0,3,1) - dx_last.block(0,0,3,1));
         // + D_cart * (dx.block(0,0,3,1) - dx_last.block(0,0,3,1));
 
-        lb.block(6,0,3,1).setZero();
-        A.block(6,0,3,7).setZero();
-        ub.block(6,0,3,1).setZero();
-
+        // lb.block(6,0,3,1).setZero();
+        // A.block(6,0,3,7).setZero();
+        // ub.block(6,0,3,1).setZero();
 
         // Matrix<double, 3, 1> dxr_Jr;
         // dxr_Jr = -vec3(log(xt.rotation().conj()*xd.rotation()));

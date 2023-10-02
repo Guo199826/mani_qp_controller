@@ -101,17 +101,22 @@ bool ManiQpController::init(hardware_interface::RobotHW* robot_hardware,
   dx_last.setZero();
 
   // get joint angle trajectory from csv
-  joint_states_csv_ = load_csv("/home/gari/mani_check/src/mani_qp_controller/data/promp/q_position_mean_traj.csv");
+  joint_states_csv_ = load_csv("/home/gari/mani_check_before/src/mani_qp_controller/data/promp/q_position_mean_traj.csv");
   // joint_states_csv_ = load_csv("/home/gari/mani_tracking_test/src/mani_qp_controller/data/csv/joint_position_traj_0912_1.csv");
   // joint_states_csv_ = load_csv("/home/gari/mani_tracking_test/src/mani_qp_controller/data/csv/joint_position_demo.csv");
-  
+  // Input txt data (experiments data)
+  // std::string path = "/home/gari/mani_check/src/mani_qp_controller/data/bags/csv/joint_configurations_Drill_1.csv";
+  // joint_states_csv_ = load_csv(path);
+  //////////////////////////////////////////////////////
   col = joint_states_csv_.cols();
+  std::cout<<"col: " << col <<std::endl;
 
-  mean_traj = load_csv_3("/home/gari/mani_check/src/mani_qp_controller/data/promp/xtrans_mean_traj.csv");
+
+  mean_traj = load_csv_3("/home/gari/mani_check_before/src/mani_qp_controller/data/promp/xtrans_mean_traj.csv");
   // mean_traj = load_csv_3("/home/gari/mani_tracking_test/src/mani_qp_controller/data/csv/cartesian_translation.csv");
   std::cout<<"mean_traj" << mean_traj.col(0) <<std::endl;
 
-  sigma_traj_3 = load_csv_3("/home/gari/mani_check/src/mani_qp_controller/data/promp/xtrans_sigma_traj_3.csv");
+  sigma_traj_3 = load_csv_3("/home/gari/mani_check_before/src/mani_qp_controller/data/promp/xtrans_sigma_traj_3.csv");
   // sigma_traj_3 = load_csv_3("/home/gari/mani_tracking_test/src/mani_qp_controller/data/csv/cartesian_translation.csv");
   
   // // joint_states_csv_.resize(7,col);
@@ -217,7 +222,9 @@ void ManiQpController::update(const ros::Time& /* time */,
   }
   q_desired = joint_states_csv_.col(rosbag_counter);
   Eigen::Matrix<double, 6, 1> x_desired;
-  x_desired.block(0,0,3,1) = mean_traj.col(rosbag_counter); 
+  Eigen::Matrix<double, 3, 1> offset_x;
+  offset_x<<0, 0.2, 0.1;
+  x_desired.block(0,0,3,1) = mean_traj.col(rosbag_counter) + offset_x; 
   x_desired.block(3,0,3,1) = sigma_traj_3.col(rosbag_counter); 
   Eigen::Matrix<double, 8, 1> xt_mean_full;
   xt_mean_full = xt_mean_dq_traj.col(rosbag_counter);
