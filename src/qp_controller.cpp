@@ -1,7 +1,15 @@
-// To switch from tracking to guidance:
-// 1. bool guidance = true;
-// 2. K_qp = 0.001;
-// 3. q_goal = one specified config
+// This file is the implementation of Quadratic Programming
+// Input: 
+    // q_: current joint positions
+    // dq_: current joint velocities
+    // counter: current iteration
+    // q_desired: reference joint positions
+    // x_desired: reference Cartesian translation mean value + Cartesian translation sigma value
+    // xt_mean: reference Cartesian pose
+    // dx: current robot end-effector twist after Low-Pass-Filter
+    // dx_last: Last timestep Cartesian twist
+// Output
+    // dq_res: the robot joint velocity control command
 
 #include "../include/qp_controller.h"
 
