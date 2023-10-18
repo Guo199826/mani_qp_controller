@@ -58,6 +58,7 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
                         const Matrix<double,6,1> &x_desired,
                         const Matrix<double, 8, 1> &xt_mean,
                         const Matrix<double,6,1> &dx,
-                        const Matrix<double,6,1> &dx_last);
+                        const Matrix<double,6,1> &dx_last,
+                        const std::unique_ptr<franka_hw::FrankaModelHandle> &model_handle_);
 
 #endif

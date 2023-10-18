@@ -63,14 +63,14 @@ namespace DQ_robotics
         // return 1 + E_ * 0.5 * DQ(0, 0.0413, 0, 0);
         // return 0.006+0.79*i_+ 0.383*j_+0*k_ + E_ * 0.5 * DQ(0, 0, 0, 0);
         return 1+ E_ * DQ(0, 0, 0, 0);
-
+        
     }
 
     DQ FrankaRobot::_get_offset_flange()
     {
         // return 1+E_*0.5*k_*1.07e-1;  // 0.5??????
         // return 1+E_*0.5*k_*(1.07e-1 + 0.134);  // 0.5??????
-        DQ frame = 1+E_*0.5*k_*(1.07e-1 + 0.1034);
+        DQ frame = 1 + E_*0.5*k_*(1.07e-1 + 0.1034);
         DQ transform_45deg = DQ(0.9238795, 0, 0, -0.3826834).normalize();
         DQ frame_new = transform_45deg + 0.5 * E_ *k_*(1.07e-1 + 0.1034) * transform_45deg;
 
@@ -83,8 +83,8 @@ namespace DQ_robotics
         // const VectorXd q_max_ = ((VectorXd(7) <<  2.3093, 1.5133, 2.4937, -0.4461, 2.4800, 4.2094,  2.6895).finished());
         // const VectorXd q_min_ = ((VectorXd(7) << -2.3093,-1.5133,-2.4937, -2.7478,-2.4800, 0.8521, -2.6895).finished());
         
-        // const VectorXd q_max_ = ((VectorXd(7) <<  2.8973, 1.7628, 2.8973, -0.0698, 2.8973, 3.7520,  2.8973).finished());
-        const VectorXd q_max_ = ((VectorXd(7) <<  2.8973, 1.7628, 2.8973, -0.0698, 2.8973, 2.70,  2.8973).finished());
+        const VectorXd q_max_ = ((VectorXd(7) <<  2.8973, 1.7628, 2.8973, -0.0698, 2.8973, 3.7520,  2.8973).finished());
+        // const VectorXd q_max_ = ((VectorXd(7) <<  2.8973, 1.7628, 2.8973, -0.0698, 2.8973, 2.70,  2.8973).finished());
 
         const VectorXd q_min_ = ((VectorXd(7) << -2.8973,-1.7628,-2.8973, -3.0718,-2.8973, -0.0175, -2.8973).finished());
         return std::make_tuple(q_min_, q_max_);
@@ -94,8 +94,8 @@ namespace DQ_robotics
     {
         // const VectorXd q_min_dot_ = ((VectorXd(7) << -2, -1, -1.5, -1.25, -3, -1.5, -3).finished());
         // const VectorXd q_max_dot_ = ((VectorXd(7) <<  2,  1,  1.5,  1.25,  3,  1.5,  3).finished());
-        // const VectorXd q_min_dot_ = ((VectorXd(7) << -2.1750, -2.1750, -2.1750, -2.1750, -2.6100, -2.6100, -2.6100).finished());
-        const VectorXd q_min_dot_ = ((VectorXd(7) << -2.1750, -2.1750, -0.17, -2.1750, -2.6100, -2.6100, -2.6100).finished());
+        const VectorXd q_min_dot_ = ((VectorXd(7) << -2.1750, -2.1750, -2.1750, -2.1750, -2.6100, -2.6100, -2.6100).finished());
+        // const VectorXd q_min_dot_ = ((VectorXd(7) << -2.1750, -2.1750, -0.17, -2.1750, -2.6100, -2.6100, -2.6100).finished());
 
         const VectorXd q_max_dot_ = ((VectorXd(7) <<  2.1750, 2.1750, 2.1750, 2.1750, 2.6100, 2.6100, 2.6100).finished());
         // const VectorXd q_max_dot_ = ((VectorXd(7) <<  2.1750, 2.1750, 2.1750, 2.1750, 2.6100, 0.15, 2.6100).finished());

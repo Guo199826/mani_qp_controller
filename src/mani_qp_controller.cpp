@@ -252,7 +252,8 @@ void ManiQpController::update(const ros::Time& /* time */,
   xt_mean_full = xt_mean_dq_traj.col(rosbag_counter);
   // std::cout<<"q_desired: "<<q_desired.transpose()<<std::endl;
   // std::cout<<"x_desired: "<<x_desired.transpose()<<std::endl;
-  Eigen::VectorXd dq_mod = qp_controller(q, dq_fil, counter, q_desired, x_desired, xt_mean_full, dx_fil, dx_last);
+
+  Eigen::VectorXd dq_mod = qp_controller(q, dq_fil, counter, q_desired, x_desired, xt_mean_full, dx_fil, dx_last, model_handle_);
   dx_last = dx_fil;
   // filter output dq_mod (joint velocity)
   if (i == 0){
