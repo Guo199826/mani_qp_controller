@@ -67,8 +67,8 @@ Tensor<double, 3> jacobianEstDynManip(const Matrix<double, 7, 1>& q, const int n
     const double total_mass,
     const std::array<double, 3> &F_x_Ctotal) 
 {
-    
     double q_delta = 0.0001;
+    // double q_delta = 0.000001;
     Matrix<double, 7, 1> q_add;
     q_add.setZero();
     
@@ -96,18 +96,22 @@ Tensor<double, 3> jacobianEstDynManip(const Matrix<double, 7, 1>& q, const int n
         q_i = q - q_add;
         
         // dyn. param
+        // 1. From Frankaros getMass()
         // Mass matrix for q_ii:
-        std::array<double, 7> q_ii_array;
-        Matrix<double, 7, 1>::Map(q_ii_array.data()) = q_ii;
-        std::array<double, 49> mass_array_ii = model_handle->getMass(q_ii_array, total_inertia, total_mass, F_x_Ctotal);
-        Map<Matrix<double, 7, 7>> Mass_ii(mass_array_ii.data());
-        // std::cout<<"Mass_ii of "<<i<<std::endl<<Mass_ii<<std::endl;
-        // Mass matrix for q_i:
-        std::array<double, 7> q_i_array;
-        Matrix<double, 7, 1>::Map(q_i_array.data()) = q_i;
-        std::array<double, 49> mass_array_i = model_handle->getMass(q_i_array, total_inertia, total_mass, F_x_Ctotal);
-        Map<Matrix<double, 7, 7>> Mass_i(mass_array_i.data());
+        // std::array<double, 7> q_ii_array;
+        // Matrix<double, 7, 1>::Map(q_ii_array.data()) = q_ii;
+        // std::array<double, 49> mass_array_ii = model_handle->getMass(q_ii_array, total_inertia, total_mass, F_x_Ctotal);
+        // Map<Matrix<double, 7, 7>> Mass_ii(mass_array_ii.data());
+        // // std::cout<<"Mass_ii of "<<i<<std::endl<<Mass_ii<<std::endl;
+        // // Mass matrix for q_i:
+        // std::array<double, 7> q_i_array;
+        // Matrix<double, 7, 1>::Map(q_i_array.data()) = q_i;
+        // std::array<double, 49> mass_array_i = model_handle->getMass(q_i_array, total_inertia, total_mass, F_x_Ctotal);
+        // Map<Matrix<double, 7, 7>> Mass_i(mass_array_i.data());
         // std::cout<<"Mass_i of "<<i<<std::endl<<Mass_i<<std::endl;
+        // 2. From github repo function
+        Matrix<double, 7, 7> Mass_ii = MassMatrix(q_ii);
+        Matrix<double, 7, 7> Mass_i = MassMatrix(q_i);
 
         J_ii = robot.pose_jacobian(q_ii);
         J_i = robot.pose_jacobian(q_i);

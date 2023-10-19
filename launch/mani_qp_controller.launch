@@ -3,8 +3,8 @@
   <arg name="robot" default="panda" doc="choose your robot. Possible values: [panda, fr3]"/>
   <arg name="arm_id" default="$(arg robot)" />
   <arg name="robot_ip" default="192.168.3.122" />
-  <arg name="rosbag_record_traj" default="false" />
-  <arg name="rosbag_record_real" default="true" />
+  <arg name="rosbag_record_traj" default="true" />
+  <arg name="rosbag_record_real" default="false" />
   <arg name="rqt_plot" default="false" />
   <arg name="rviz" default="false" />
 
@@ -20,17 +20,17 @@
 
   <!-- record trajectory -->
   <node pkg="rosbag" type="record" name="rosbag_record_q_traj"
-        args="record -O /home/gari/mani_qp_ws_for_traj/src/mani_qp_controller/data/bags/joint_position_traj.bag /franka_state_controller/joint_position"
+        args="record -O /home/gari/mani_check_before/src/mani_qp_controller/data/bags/joint_position_dyn.bag /franka_state_controller/joint_position"
         if="$(arg rosbag_record_traj)" />
   <node pkg="rosbag" type="record" name="rosbag_record_dq_traj"
-        args="record -O /home/gari/mani_qp_ws_for_traj/src/mani_qp_controller/data/bags/joint_velocity_traj.bag /franka_state_controller/joint_velocity"
+        args="record -O /home/gari/mani_check_before/src/mani_qp_controller/data/bags/joint_velocity_dyn.bag /franka_state_controller/joint_velocity"
         if="$(arg rosbag_record_traj)" />
   <!-- record real motion -->
   <node pkg="rosbag" type="record" name="rosbag_record_q_real"
-        args="record -O /home/gari/mani_check_before/src/mani_qp_controller/data/bags/joint_position_real_1002.bag /franka_state_controller/joint_position"
+        args="record -O /home/gari/mani_check_before/src/mani_qp_controller/data/bags/joint_position_real_dyn.bag /franka_state_controller/joint_position"
         if="$(arg rosbag_record_real)" />
   <node pkg="rosbag" type="record" name="rosbag_record_dq_real"
-        args="record -O /home/gari/mani_check_before/src/mani_qp_controller/data/bags/joint_velocity_real_1002.bag /franka_state_controller/joint_velocity"
+        args="record -O /home/gari/mani_check_before/src/mani_qp_controller/data/bags/joint_velocity_real_dyn.bag /franka_state_controller/joint_velocity"
         if="$(arg rosbag_record_real)" />
 
 </launch>

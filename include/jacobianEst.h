@@ -8,6 +8,7 @@
 #include "../include/mani_qp_controller.h"
 // #include <functional>
 #include "../include/geomJac.h"
+#include "../include/franka_model.h"
 
 using namespace Eigen;
 using namespace DQ_robotics;

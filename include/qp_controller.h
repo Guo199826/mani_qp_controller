@@ -49,6 +49,7 @@ Prerequisites:
 #include "OsqpEigen/OsqpEigen.h"
 #include <chrono>
 #include <dqrobotics/robot_control/DQ_PseudoinverseController.h>
+#include "../include/franka_model.h"
 
 using namespace Eigen;
 using namespace DQ_robotics;
