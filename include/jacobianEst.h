@@ -17,6 +17,10 @@ using namespace DQ_robotics;
 Tensor<double, 3> jacobianEst(const VectorXd& q, const int n,
     const DQ_SerialManipulator &robot);
 
+// derivative of Mass matrix wrt joint position
+Tensor<double, 3> jacobianEstMass(const Matrix<double, 7, 1>& q, const int n,
+    const DQ_SerialManipulator &robot);
+
 //for dyn. Manip.
 Tensor<double, 3> jacobianEstDynManip(const Matrix<double, 7, 1>& q, const int n,
     const DQ_SerialManipulator &robot,

@@ -23,8 +23,8 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
 {
     // Matrix<double, 7, 7> mass_test = MassMatrix(q_);
 
-    c_float K_qp = 0.01; //for dyn Manip
-    // c_float K_qp = 0.5; //for velocity Manip
+    // c_float K_qp = 0.001; //for dyn Manip
+    c_float K_qp = 0.5; //for velocity Manip
     // c_float K_cart = 2;
     c_float W = 1;
     Matrix<c_float, 8, 8> W_cart;
@@ -126,6 +126,7 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
     MatrixXd M_diff_axis;
     Matrix<double, 1, 7> J_geom_goal_axis;
     J_goal = robot.pose_jacobian(q_goal);
+    // J_goal = model_handle->getZeroJacobian();
     J_geom_goal = geomJac(robot, J_goal, q_goal, n);
     J_geom_goal_axis = J_geom_goal.row(3); // translation in x as primary tracking object
     Me_d_axis = J_geom_goal_axis*J_geom_goal_axis.transpose();
@@ -138,7 +139,7 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
     // Map<Matrix<double, 7, 7>> Mass_d(mass_array_d.data());
     // 2. From github repo
     Matrix<double, 7, 7> Mass_d = MassMatrix(q_goal);
-    Me_dyn_d = J_geom_goal*Mass_d.inverse() * (J_geom_goal*Mass_d.inverse()).transpose();
+    Me_dyn_d = (J_geom_goal*Mass_d.inverse()) * (J_geom_goal*Mass_d.inverse()).transpose();
 
     // test ik solver (without offset to synchronize with Vrep)
     // DQ x = robot_ik.fkm(q).normalize();
@@ -268,21 +269,31 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
         Eigen::Matrix<double, 3, 1> dxr_t;
         // Vel. Manip. ////////////////////////////////////////////////////////////////////////////
         // derivative of J wrt q (for velocity manip.)
-        // J_grad = jacobianEst(q_, n, robot);
-        // // Compute velocity manipulability Jacobian (red to matrix)
-        // Jm_t = redManipulabilityJacobian(J_geom, J_grad);
-        // // Compute distance to desired manipulybility 
-        // M_diff = logmap(Me_d, Me_ct); // 6x6 // velocity Manip.
-        // vec_M_diff = spd2vec_vec(M_diff); // 21x1
+        J_grad = jacobianEst(q_, n, robot);
+        // Compute velocity manipulability Jacobian (red to matrix)
+        Jm_t = redManipulabilityJacobian(J_geom, J_grad);
+        // Compute distance to desired manipulybility 
+        M_diff = logmap(Me_d, Me_ct); // 6x6 // velocity Manip.
+        vec_M_diff = spd2vec_vec(M_diff); // 21x1
         ////////////////////////////////////////////////////////////////////////////////////////////
 
         // Dyn. Manip. /////////////////////////////////////////////////////////////////////////////
+        // Method 1:
         // derivative of J*M⁻¹ wrt q (for dynamic manip.)
-        J_dyn_grad = jacobianEstDynManip(q_, n, robot, model_handle, total_inertia, total_mass, F_x_Ctotal);
-        // Compute dynamic manipulability Jacobian (red to matrix)
-        Jm_dyn_t = redManipulabilityJacobian(L_ct, J_dyn_grad);
-        M_dyn_diff = logmap(Me_dyn_d, Me_dyn_ct); // 6x6 // dyn. Manip.
-        vec_M_dyn_diff = spd2vec_vec(M_dyn_diff); // 21x1 // dyn. Manip.
+        // J_dyn_grad = jacobianEstDynManip(q_, n, robot, model_handle, total_inertia, total_mass, F_x_Ctotal);
+        // // Compute dynamic manipulability Jacobian (red to matrix)
+        // Jm_dyn_t = redManipulabilityJacobian(L_ct, J_dyn_grad);
+        // Method 2:
+        // Tensor<double, 3> mass_diff = jacobianEstMass(q_, n, robot);
+        // Jm_dyn_t = redManipulabilityJacobianDyn(L_ct, J_grad, mass_diff, Mass);
+        // M_dyn_diff = logmap(Me_dyn_d, Me_dyn_ct); // 6x6 // dyn. Manip.
+        // with weiting term on Tz:
+        // Matrix<double, 6, 1> w_Me_vec;
+        // w_Me_vec << 0,0,0,0,0,5;
+        // Matrix<double, 6, 6> w_Me = w_Me_vec.asDiagonal();
+        // M_dyn_diff =  logmap(Me_dyn_d, Me_dyn_ct); // 6x6 // dyn. Manip. 
+
+        // vec_M_dyn_diff = spd2vec_vec(M_dyn_diff); // 21x1 // dyn. Manip.
         ////////////////////////////////////////////////////////////////////////////////////////////
 
         array<DenseIndex, 3> offset_axis = {3, 0, 0}; // translation in x
@@ -312,9 +323,9 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
         Matrix<c_float, 31, 7> A;
         Matrix<c_float, 31, 1> ub;
 
-        // Matrix<c_float, 7, 7> H = 1*Jm_t.transpose()*Jm_t + J.transpose() * W_cart * J;
+        Matrix<c_float, 7, 7> H = 1*Jm_t.transpose()*Jm_t + J.transpose() * W_cart * J;
         // Dyn. Manip.
-        Matrix<c_float, 7, 7> H = 1*Jm_dyn_t.transpose()*Jm_dyn_t + J.transpose() * W_cart * J;
+        // Matrix<c_float, 7, 7> H = 1*Jm_dyn_t.transpose()*Jm_dyn_t + J.transpose() * W_cart * J;
 
         H_s = H.sparseView();
         // std::cout<<"H: "<<std::endl<<H<<std::endl;
@@ -328,9 +339,9 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
         DQ xt_offset_t = DQ(x_offset);
         DQ xt_mean_r = DQ(xt_mean.block(0,0,4,1));
         DQ xt_obj = xt_mean_r + E_ * 0.5 * xt_offset_t * xt_mean_r;
-        // Matrix<c_float, 1, 7> f = -2*K_qp* vec_M_diff.transpose()*Jm_t - 2*(xt_obj.vec8() - xt.vec8()).transpose()* W_cart*K_cart *J;
+        Matrix<c_float, 1, 7> f = -2*K_qp* vec_M_diff.transpose()*Jm_t - 2*(xt_obj.vec8() - xt.vec8()).transpose()* W_cart*K_cart *J;
         // Dyn. Manip.
-        Matrix<c_float, 1, 7> f = -2*K_qp* vec_M_dyn_diff.transpose()*Jm_dyn_t - 2*(xt_obj.vec8() - xt.vec8()).transpose()* W_cart*K_cart *J;
+        // Matrix<c_float, 1, 7> f = -2*K_qp* vec_M_dyn_diff.transpose()*Jm_dyn_t - 2*(xt_obj.vec8() - xt.vec8()).transpose()* W_cart*K_cart *J;
 
         // std::cout<<"f: "<<std::endl<<f<<std::endl;
 
@@ -340,12 +351,12 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
         Matrix<c_float, 6, 1> v_max;
         ev_min << ev_min_r, ev_min_r, ev_min_r, ev_min_t, ev_min_t, ev_min_t;
         v_max = (ev_min - ev_t) * K_sing;
-        lb.block(0,0,6,1) = v_max;
-        A.block(0,0,6,7) = ev_diff;
-        ub.block(0,0,6,1).setConstant(OsqpEigen::INFTY);
-        // lb.block(0,0,6,1).setZero();
-        // A.block(0,0,6,7).setZero();
-        // ub.block(0,0,6,1).setZero();
+        // lb.block(0,0,6,1) = v_max;
+        // A.block(0,0,6,7) = ev_diff;
+        // ub.block(0,0,6,1).setConstant(OsqpEigen::INFTY);
+        lb.block(0,0,6,1).setZero();
+        A.block(0,0,6,7).setZero();
+        ub.block(0,0,6,1).setZero();
 
         // 2. cartesian translation interval given by ProMP
         Eigen::Matrix<double, 3, 1> I_cartesian;
@@ -380,31 +391,31 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
         // a. Regarding joint position (tested):
         dq_min_q = (q_min-qt) * 1;
         dq_max_q = (q_max-qt) * 1;
-        lb.block(10,0,7,1) = dq_min_q;
-        A.block(10,0,7,7) = I;
-        ub.block(10,0,7,1) = dq_max_q;
-        // lb.block(10,0,7,1).setZero();
-        // A.block(10,0,7,7).setZero();
-        // ub.block(10,0,7,1).setZero();
+        // lb.block(10,0,7,1) = dq_min_q;
+        // A.block(10,0,7,7) = I;
+        // ub.block(10,0,7,1) = dq_max_q;
+        lb.block(10,0,7,1).setZero();
+        A.block(10,0,7,7).setZero();
+        ub.block(10,0,7,1).setZero();
 
         // b. Regarding joint velocity limit (tested):
-        lb.block(17,0,7,1) = dq_min;
-        A.block(17,0,7,7) = I;
-        ub.block(17,0,7,1) = dq_max;
-        // lb.block(17,0,7,1).setZero();
-        // A.block(17,0,7,7).setZero();
-        // ub.block(17,0,7,1).setZero();
+        // lb.block(17,0,7,1) = dq_min;
+        // A.block(17,0,7,7) = I;
+        // ub.block(17,0,7,1) = dq_max;
+        lb.block(17,0,7,1).setZero();
+        A.block(17,0,7,7).setZero();
+        ub.block(17,0,7,1).setZero();
 
         // c. Regarding joint acceleration:
         dq_min_ddq = dq_ - ddq_max * 0.1 ; // dt
         dq_max_ddq = dq_ + ddq_max * 0.1 ; // dt
 
-        lb.block(24,0,7,1) = dq_min_ddq;
-        A.block(24,0,7,7)= I;
-        ub.block(24,0,7,1) = dq_max_ddq;
-        // lb.block(24,0,7,1).setZero();
-        // A.block(24,0,7,7).setZero();
-        // ub.block(24,0,7,1).setZero();
+        // lb.block(24,0,7,1) = dq_min_ddq;
+        // A.block(24,0,7,7)= I;
+        // ub.block(24,0,7,1) = dq_max_ddq;
+        lb.block(24,0,7,1).setZero();
+        A.block(24,0,7,7).setZero();
+        ub.block(24,0,7,1).setZero();
         // std::cout<<"lb_limits: "<<std::endl<<lb_limits<<std::endl;
         // std::cout<<"ub_limits: "<<std::endl<<ub_limits<<std::endl;
 
