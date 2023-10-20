@@ -2,7 +2,7 @@
 
 Author: Yu, Guo & Gong, Yuhe
 
-Corresponding Email: yuguo199826@gmail.com
+Corresponding Email: yuguo199826@gmail.com, yuhe.gong@nottingham.ac.uk
 
 Description: Geometric-aware velocity controller based on quadratic programming (QP) and manipuability ellipsoid, combined with an admittance controller.
 
