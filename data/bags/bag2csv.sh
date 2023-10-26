@@ -14,6 +14,6 @@
 # rostopic echo -b joint_position_dyn.bag -p /franka_state_controller/joint_position > joint_position_dyn.csv
 # rostopic echo -b joint_velocity_dyn.bag -p /franka_state_controller/joint_velocity > joint_velocity_dyn.csv
 
-rostopic echo -b joint_position_real_dyn.bag -p /franka_state_controller/joint_position > joint_position_real_dyn_noconstr.csv
-rostopic echo -b joint_velocity_real_dyn.bag -p /franka_state_controller/joint_velocity > joint_velocity_real_dyn_noconstr.csv
+rostopic echo -b joint_position_real_dyn.bag -p /franka_state_controller/joint_position > joint_position_real_dyn_tuned.csv
+rostopic echo -b joint_velocity_real_dyn.bag -p /franka_state_controller/joint_velocity > joint_velocity_real_dyn_tuned.csv
 

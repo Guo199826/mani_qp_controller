@@ -44,13 +44,27 @@ namespace DQ_robotics
     //     return franka;
     // }
 
+    // MatrixXd FrankaRobot::_get_mdh_matrix()
+    // {
+    //     const double pi2 = pi/2.0;
+    //     Matrix<double,5,7> raw_franka_mdh(5,7);
+    //     raw_franka_mdh <<  0,    0,       0,         0,         0,      0,      0,
+    //                     0.333,  0, 3.16e-1,         0,   3.84e-1,      0,      0,
+    //                     0,      0,       0,   8.25e-2,  -8.25e-2,      0, 8.8e-2,
+    //                     0,   -pi2,     pi2,       pi2,      -pi2,    pi2,    pi2,
+    //                     0,      0,       0,         0,         0,      0,      0;
+
+    //     return raw_franka_mdh;
+    // }
+
+    // robot w.r.t. CoM
     MatrixXd FrankaRobot::_get_mdh_matrix()
     {
         const double pi2 = pi/2.0;
         Matrix<double,5,7> raw_franka_mdh(5,7);
         raw_franka_mdh <<  0,    0,       0,         0,         0,      0,      0,
-                        0.333,  0, 3.16e-1,         0,   3.84e-1,      0,      0,
-                        0,     0,       0,   8.25e-2,  -8.25e-2,      0, 8.8e-2,
+                        0.268,  0,   0.149,         0,      0.064,      0,      0,
+                        0,      0,       0,   0.067,  -0.034,      0, 0.0087,
                         0,  -pi2,     pi2,       pi2,      -pi2,    pi2,    pi2,
                         0,     0,       0,         0,         0,      0,      0;
 

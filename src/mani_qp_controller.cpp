@@ -233,13 +233,13 @@ void ManiQpController::update(const ros::Time& /* time */,
 
   // Eigen::VectorXd dq_filtered_prev = dq_filtered;
   // dq_filtered = (1. - alpha_dq_filter) * dq_filtered + alpha_dq_filter * dq;
-  std::array<double, 16> F_T_EE = robot_state.F_T_EE;
-  std::array<double, 16> EE_T_K = robot_state.EE_T_K;
+  // std::array<double, 16> F_T_EE = robot_state.F_T_EE;
+  // std::array<double, 16> EE_T_K = robot_state.EE_T_K;
 
-  std::array<double, 42UL> J_stiff_array = model_handle_->getZeroJacobian(franka::Frame::kStiffness);
-  Eigen::Map<Eigen::Matrix<double, 6, 7>> J_stiff(J_stiff_array.data());
-  std::cout<<"J_stiff: \n"<<J_stiff<<std::endl;
-  ros::shutdown();
+  // std::array<double, 42UL> J_stiff_array = model_handle_->getZeroJacobian(franka::Frame::kStiffness);
+  // Eigen::Map<Eigen::Matrix<double, 6, 7>> J_stiff(J_stiff_array.data());
+  // std::cout<<"J_stiff: \n"<<J_stiff<<std::endl;
+  // ros::shutdown();
 
   Eigen::Matrix<double, 7, 1> q_desired;
   // q_desired << -0.3, -0.5, -0.00208172, -2, -0.00172665, 1.57002, 0.794316;
