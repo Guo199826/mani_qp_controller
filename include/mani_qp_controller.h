@@ -92,6 +92,7 @@ namespace mani_qp_controller {
     bool tracking;   
     std::string adm_controller;
     Eigen::Matrix<double, 6, 1> dx_last;
+    Eigen::Matrix<double, 7, 1> dq_fil_last_output;
 
     Eigen::MatrixXd save_Cartesian;
     //DQ_SerialManipulatorMDH robot;
