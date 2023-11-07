@@ -50,7 +50,7 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
     // 0.1
     c_float ev_min_r = 0.1;
     // 0.02
-    c_float ev_min_t = 0.02;
+    c_float ev_min_t = 0.1;
     Matrix<double,7,1> q_goal;
     q_goal = q_desired;
  
@@ -220,13 +220,15 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
         // qt_track.col(i) = qt;
         // forward kinematic model
         DQ xt = robot.fkm(qt);
-        DQ xd = robot.fkm(q_desired);
+        DQ xd = robot.fkm(q_goal);
         Matrix<double, 8, 1> xt_8 = xt.vec8();
         // Matrix<double, 8, 1> xd_8 = xd.vec8();
 
         //test coordinate with frankaros
         // Matrix4d tfm = dq2tfm(xt);
         Vector3d xt_t = xt.translation().vec3();
+        Vector3d xd_t = xd.translation().vec3();
+
         Vector4d xt_r = xt.rotation().vec4();
         // Quaterniond rotationQuaternion(xt_r(0), xt_r(1), xt_r(2), xt_r(3));
         // Convert the rotation quaternion into a 3x3 rotation matrix
@@ -328,7 +330,7 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
         Matrix<c_float, 31, 7> A;
         Matrix<c_float, 31, 1> ub;
 
-        Matrix<c_float, 7, 7> H = 1*Jm_t.transpose()*Jm_t + 0*J.transpose() * W_cart * J;
+        Matrix<c_float, 7, 7> H = 1*Jm_t.transpose()*Jm_t + J.transpose() * W_cart * J;
         // Dyn. Manip.
         // Matrix<c_float, 7, 7> H = 1*Jm_dyn_t.transpose()*Jm_dyn_t + 0*J.transpose() * W_cart * J;
 
@@ -344,7 +346,9 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
         DQ xt_offset_t = DQ(x_offset);
         DQ xt_mean_r = DQ(xt_mean.block(0,0,4,1));
         DQ xt_obj = xt_mean_r + E_ * 0.5 * xt_offset_t * xt_mean_r;
-        Matrix<c_float, 1, 7> f = -2*K_qp* vec_M_diff.transpose()*Jm_t - 0*2*(xt_obj.vec8() - xt.vec8()).transpose()* W_cart*K_cart *J;
+        // Matrix<c_float, 1, 7> f = -2*K_qp* vec_M_diff.transpose()*Jm_t - 2*(xt_obj.vec8() - xt.vec8()).transpose()* W_cart*K_cart *J;
+        Matrix<c_float, 1, 7> f = -2*K_qp* vec_M_diff.transpose()*Jm_t - 2*(xd.vec8() - xt.vec8()).transpose()* W_cart*K_cart *J;
+
         // Dyn. Manip.
         // Matrix<c_float, 1, 7> f = -2* vec_M_dyn_diff.transpose()*Jm_dyn_t *K_qp - 0*2*(xt_obj.vec8() - xt.vec8()).transpose()* W_cart*K_cart *J;
 
@@ -362,18 +366,21 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
         // ub.block(0,0,6,1).setZero();
 
         // 2. cartesian translation interval given by ProMP
-        // Eigen::Matrix<double, 3, 1> I_cartesian;
-        // I_cartesian.setIdentity();
-        dxr_t = (x_desired.block(0,0,3,1) - xt_t) * 1;
+        Eigen::Matrix<double, 3, 1> I_cartesian;
+        I_cartesian.setIdentity();
+        // dxr_t = (x_desired.block(0,0,3,1) - xt_t) * 1;
+        dxr_t = (xd_t - xt_t) * 1;
         // dxr_t = -vec3(xt.translation() - xd.translation());
-        // std::cout<<"Before cartesian constraint..."<<std::endl;
 
         // lb.block(6,0,3,1) = dxr_t - x_desired.block(3,0,3,1)*1;
         // A.block(6,0,3,7) = J_geom_t;
         // ub.block(6,0,3,1) = dxr_t + x_desired.block(3,0,3,1)*1;
-        lb.block(6,0,3,1).setZero();
-        A.block(6,0,3,7).setZero();
-        ub.block(6,0,3,1).setZero();
+        lb.block(6,0,3,1) = dxr_t - 0.2 * I_cartesian;
+        A.block(6,0,3,7) = J_geom_t;
+        ub.block(6,0,3,1) = dxr_t + 0.2 * I_cartesian;
+        // lb.block(6,0,3,1).setZero();
+        // A.block(6,0,3,7).setZero();
+        // ub.block(6,0,3,1).setZero();
 
         // MatrixXd lower = (dxr_t - x_desired.block(3,0,3,1));
         // MatrixXd upper = (dxr_t + x_desired.block(3,0,3,1));

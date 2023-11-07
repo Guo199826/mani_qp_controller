@@ -31,15 +31,14 @@ Eigen::MatrixXd load_csv(const std::string & path) {
             matrix(col, row) = columns[col][row];
         }
     }
+    // For preprocessed data (data begins from very beginning)
     // Eigen::MatrixXd q_traj_csv = matrix.block(0,0,7,columns[0].size());
-    Eigen::MatrixXd q_traj_csv = matrix.block(0,0,7,columns[0].size());
+
+    // From the fourth column begins real data
+    Eigen::MatrixXd q_traj_csv = matrix.block(3,0,7,columns[0].size());
     
     return q_traj_csv;
 }
-
-
-
-
 
 
 Eigen::MatrixXd load_csv_3 (const std::string & path) {
