@@ -18,11 +18,19 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
                         const Matrix<double,6,1> &x_desired,
                         const Matrix<double, 8, 1> &xt_mean,
                         const Matrix<double,6,1> &dx,
-                        const Matrix<double,6,1> &dx_last)
+                        const Matrix<double,6,1> &dx_last,
+                        const std::unique_ptr<franka_hw::FrankaModelHandle> &model_handle)
 {
-    c_float K_qp = 0.5; 
+    // std::cout<<"Enter the function..."<<std::endl;
+    Matrix<c_float, 7, 1> K_qp_vec;
+    // K_qp_vec << 0.001, 0.001, 0.001, 0.001, 0.002, 0.005, 0.01;
+    // K_qp_vec << 0.005, 0.005, 0.005, 0.005, 0.005, 0.005, 0.005;
+
+    // Matrix<c_float, 7, 7> K_qp = K_qp_vec.asDiagonal();
+    // c_float K_qp = 0.001; //for dyn Manip
+    c_float K_qp = 0.5; //for velocity Manip
     // c_float K_cart = 2;
-    c_float W = 1;
+    c_float W = 0.5;
     Matrix<c_float, 8, 8> W_cart;
     Matrix<c_float, 8, 8> K_cart;
     c_float D_cart = 50;
@@ -31,14 +39,17 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
     Matrix<c_float, 8, 1> K_cart_vec;
     // W_cart_vec << 2, 2, 2, 2, 2, 2, 2, 2;
     W_cart_vec << 1, 1, 1, 1, 1, 1, 1, 1;
-
-    K_cart_vec << 1, 1, 1, 1, 2, 2, 2, 2;
+    // first 4: Rotation
+    // last 4: Translation
+    K_cart_vec << 1, 1, 1, 1, 1, 1, 1, 1;
     W_cart = W * W_cart_vec.asDiagonal();
     K_cart = K_cart_vec.asDiagonal();
 
     // K_sing = 1/T, T means the duration system takes to avoid singularity
     c_float K_sing = 1;
+    // 0.1
     c_float ev_min_r = 0.1;
+    // 0.02
     c_float ev_min_t = 0.02;
     Matrix<double,7,1> q_goal;
     q_goal = q_desired;
@@ -57,6 +68,30 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
     // Set link number and joint angle
     int n = 7;
     int m = 6; // Dimension of workspace
+
+    // get Mass Matrix from frankaros
+    // get joint position in std::array form
+    // std::array<double, 7> q_array;
+    // Matrix<double, 7, 1>::Map(q_array.data()) = q_;
+    // // std::array<double, 49> mass_array = model_handle->getMass();
+    // Matrix<double, 3, 3> total_inertia_eigen;
+    // total_inertia_eigen << 0.001, 0      , 0     ,
+    //                        0,     0.0025 , 0     ,
+    //                        0    , 0      , 0.0017;
+    // std::array<double, 9> total_inertia;
+    // Matrix<double, 3, 3>::Map(total_inertia.data()) = total_inertia_eigen;
+
+    // total_inertia.fill(0);
+    // // double total_mass = 0.73;
+    // double total_mass = 0;
+    // std::array<double, 3> F_x_Ctotal;
+    // F_x_Ctotal.fill(0);
+    // F_x_Ctotal[2] = 0.1034;
+    // Map<Matrix<double, 7, 7>> Mass(mass_array.data());
+    
+    // std::cout<<"Test Mass: \n"<<Mass<<std::endl<<Mass_<<std::endl;
+    // std::cout<<"Mass: "<<std::endl<<Mass;
+
     // VectorXd q_ (n);
     // VectorXd q_1 (n);
     // q_1 << 1.15192, 0.383972, 0.261799, -1.5708, 0.0, 1.39626, 0.0 ; // validate with q_test in Matlab
@@ -75,7 +110,7 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
     Matrix<double, 7, 1> q_max = robot.get_upper_q_limit();
     // joint acceleration bounds
     Matrix<double, 7, 1> ddq_max;
-    ddq_max.setConstant(0.2); // original: 500
+    ddq_max.setConstant(10); // original: 500
     Matrix<double, 7, 1> dq_min_q;
     Matrix<double, 7, 1> dq_max_q;
     Matrix<double, 7, 1> dq_min_ddq;
@@ -91,15 +126,26 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
     MatrixXd J_goal;
     MatrixXd J_geom_goal;
     MatrixXd Me_d;
+    MatrixXd Me_dyn_d;
     MatrixXd Me_d_axis;
     MatrixXd Me_ct_axis;
     MatrixXd M_diff_axis;
     Matrix<double, 1, 7> J_geom_goal_axis;
     J_goal = robot.pose_jacobian(q_goal);
+    // J_goal = model_handle->getZeroJacobian();
     J_geom_goal = geomJac(robot, J_goal, q_goal, n);
-    J_geom_goal_axis = J_geom_goal.row(3); // translation in x as primary tracking object
+    J_geom_goal_axis = J_geom_goal.row(3); // translation in y as primary tracking object/rotation in x
     Me_d_axis = J_geom_goal_axis*J_geom_goal_axis.transpose();
     Me_d = J_geom_goal*J_geom_goal.transpose();
+    // desired Mass matrix
+    // get joint position in std::array form
+    // std::array<double, 7> q_goal_array;
+    // Matrix<double, 7, 1>::Map(q_goal_array.data()) = q_goal;
+    // std::array<double, 49> mass_array_d = model_handle -> getMass(q_goal_array, total_inertia, total_mass, F_x_Ctotal);
+    // Map<Matrix<double, 7, 7>> Mass_d(mass_array_d.data());
+    // 2. From github repo
+    Matrix<double, 7, 7> Mass_d = MassMatrix(q_goal);
+    Me_dyn_d = (J_geom_goal*Mass_d.inverse()) * (J_geom_goal*Mass_d.inverse()).transpose();
 
     // test ik solver (without offset to synchronize with Vrep)
     // DQ x = robot_ik.fkm(q).normalize();
@@ -135,19 +181,29 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
     Matrix<double,7,1> dq_res;
     MatrixXd J;
     MatrixXd J_geom;
+    MatrixXd L_ct;
+
     MatrixXd J_geom_t;
     MatrixXd J_geom_r;
 
     MatrixXd J_geom_t_axis;
     MatrixXd Me_ct(m,m);
+    MatrixXd Me_dyn_ct(m,m);
+
     Tensor<double, 3> Me_track(m,m,nbIter);
     Tensor<double, 3> J_grad(m,n,n);
+    Tensor<double, 3> J_dyn_grad(m,n,n);
     Tensor<double, 3> J_grad_axis(1,n,n);
     Tensor<double, 3> Jm_t_axis_;
     MatrixXd Jm_t;
+    MatrixXd Jm_dyn_t;
     MatrixXd Jm_t_axis;
     MatrixXd M_diff(m,m);
+    MatrixXd M_dyn_diff(m,m);
+
     VectorXd vec_M_diff(21);
+    VectorXd vec_M_dyn_diff(21);
+
     Matrix<double, 6, 1> ev_t;
     MatrixXd ev_diff;
     BDCSVD<MatrixXd> singularsolver;
@@ -166,14 +222,13 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
         DQ xt = robot.fkm(qt);
         DQ xd = robot.fkm(q_desired);
         Matrix<double, 8, 1> xt_8 = xt.vec8();
-        Matrix<double, 8, 1> xd_8 = xd.vec8();
+        // Matrix<double, 8, 1> xd_8 = xd.vec8();
 
         //test coordinate with frankaros
-        // std::cout<<"xt_8: ------- "<<xt_8.transpose()<<std::endl;
         // Matrix4d tfm = dq2tfm(xt);
         Vector3d xt_t = xt.translation().vec3();
         Vector4d xt_r = xt.rotation().vec4();
-        Quaterniond rotationQuaternion(xt_r(0), xt_r(1), xt_r(2), xt_r(3));
+        // Quaterniond rotationQuaternion(xt_r(0), xt_r(1), xt_r(2), xt_r(3));
         // Convert the rotation quaternion into a 3x3 rotation matrix
         // Matrix3d rotationMatrix = rotationQuaternion.toRotationMatrix();
         // Vector3d Euler = rotationMatrix.eulerAngles(0,1,2);    
@@ -195,11 +250,21 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
         J_geom = geomJac(robot, J, qt, n); 
         J_geom_t = J_geom.block(3, 0, 3, n); 
         J_geom_r = J_geom.block(0, 0, 3, n); 
-        J_geom_t_axis = J_geom_t.row(0); // translation in x as primary tracking object
+        J_geom_t_axis = J_geom_t.row(0); // translation in y as primary tracking object
         // std::cout<<"----------J_geom_t: "<<std::endl<<J_geom_t<<std::endl;
         // std::cout<<"----------J_geom_t_axis: "<<std::endl<<J_geom_t_axis<<std::endl;
-        // Current Mani and Record Me_ct into Me_track
+
+        // current Mass matrix
+        // std::array<double, 49> mass_array_ = model_handle->getMass(q_array, total_inertia, total_mass, F_x_Ctotal);
+        // Map<Matrix<double, 7, 7>> Mass(mass_array_.data());
+        // From github repo
+        Matrix<double, 7, 7> Mass = MassMatrix(q_);
+        // Current velocity Manip. 
         Me_ct = J_geom*J_geom.transpose();
+        // Current dyn. Manip.
+        L_ct = J_geom*Mass.inverse();
+        Me_dyn_ct = L_ct * L_ct.transpose();
+
         Me_ct_axis = J_geom_t_axis*J_geom_t_axis.transpose();
         array<DenseIndex, 3> offset = {0, 0, i};
         array<DenseIndex, 3> extent = {m, m, 1};
@@ -207,25 +272,48 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
         Me_track.slice(offset, extent) = Me_ct_tensor;
 
         Eigen::Matrix<double, 3, 1> dxr_t;
+        // Vel. Manip. ////////////////////////////////////////////////////////////////////////////
+        // derivative of J wrt q (for velocity manip.)
+        J_grad = jacobianEst(q_, n, robot);
+        // Compute velocity manipulability Jacobian (red to matrix)
+        Jm_t = redManipulabilityJacobian(J_geom, J_grad);
+        // Compute distance to desired manipulybility 
+        M_diff = logmap(Me_d, Me_ct); // 6x6 // velocity Manip.
+        vec_M_diff = spd2vec_vec(M_diff); // 21x1
+        ////////////////////////////////////////////////////////////////////////////////////////////
 
-        J_grad = jacobianEst(qt, n, robot);
-        array<DenseIndex, 3> offset_axis = {3, 0, 0}; // translation in x
+        // Dyn. Manip. /////////////////////////////////////////////////////////////////////////////
+        // Method 1:
+        // derivative of J*M⁻¹ wrt q (for dynamic manip.)
+        // J_dyn_grad = jacobianEstDynManip(q_, n, robot, model_handle, total_inertia, total_mass, F_x_Ctotal);
+        // // Compute dynamic manipulability Jacobian (red to matrix)
+        // Jm_dyn_t = redManipulabilityJacobian(L_ct, J_dyn_grad);
+        // Method 2:
+        // Tensor<double, 3> mass_diff = jacobianEstMass(q_, n, robot);
+        // Jm_dyn_t = redManipulabilityJacobianDyn(L_ct, J_grad, mass_diff, Mass);
+        // with weiting term on Tz:
+        // Matrix<double, 6, 1> w_Me_vec;
+        // w_Me_vec << 0,0,0,0,0,5;
+        // Matrix<double, 6, 6> w_Me = w_Me_vec.asDiagonal();
+        // M_dyn_diff =  logmap(Me_dyn_d, Me_dyn_ct); // 6x6 // dyn. Manip. 
+        // M_dyn_diff = logmap(Me_dyn_d, Me_dyn_ct); // 6x6 // dyn. Manip.
+        // vec_M_dyn_diff = spd2vec_vec(M_dyn_diff); // 21x1 // dyn. Manip.
+        ////////////////////////////////////////////////////////////////////////////////////////////
+
+        array<DenseIndex, 3> offset_axis = {3, 0, 0}; // translation in y
+        // array<DenseIndex, 3> offset_axis = {0, 0, 0}; // rotation in x
         array<DenseIndex, 3> extent_axis = {1, 7, 7};
         J_grad_axis = J_grad.slice(offset_axis, extent_axis);
-        // Compute manipulability Jacobian (red to matrix)
-        Jm_t = redManipulabilityJacobian(J_geom, J_grad);
+        
         Jm_t_axis_ = manipulabilityJacobian(J_geom_t_axis, J_grad_axis);
         Jm_t_axis = Map<MatrixXd> (Jm_t_axis_.data(), 1, 7);
         // std::cout<<"Jm_t_axis_: "<<std::endl<<Jm_t_axis_ <<std::endl;
-
-        // Compute distance to desired manipulybility 
-        M_diff = logmap(Me_d, Me_ct); // 6x6
+        
         M_diff_axis = logmap(Me_d_axis, Me_ct_axis); // 1
 
-        vec_M_diff = spd2vec_vec(M_diff); // 21x1
         // std::cout<<"M_diff: "<<std::endl<<M_diff<<std::endl;
         // std::cout<<"M_diff_axis: "<<std::endl<<M_diff_axis<<std::endl;
-        // std::cout<<"vec_M_diff: "<<std::endl<<vec_M_diff<<std::endl;
+        // std::cout<<"vec_M_dyn_diff: "<<std::endl<<vec_M_dyn_diff<<std::endl;
 
         // Calculate eigenvalue of the current M (singular value of J_geom)
         ev_t = singularsolver.compute(J_geom).singularValues();
@@ -240,9 +328,12 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
         Matrix<c_float, 31, 7> A;
         Matrix<c_float, 31, 1> ub;
 
-        Matrix<c_float, 7, 7> H = 1*Jm_t.transpose()*Jm_t + J.transpose() * W_cart * J;
+        Matrix<c_float, 7, 7> H = 1*Jm_t.transpose()*Jm_t + 0*J.transpose() * W_cart * J;
+        // Dyn. Manip.
+        // Matrix<c_float, 7, 7> H = 1*Jm_dyn_t.transpose()*Jm_dyn_t + 0*J.transpose() * W_cart * J;
+
         H_s = H.sparseView();
-        // std::cout<<"H: "<<std::endl<<H<<std::endl;
+        
         H_s.pruned(1e-9); // set those smaller than 0.01 as zero
         // std::cout<<"H_S : "<<std::endl<<H_s<<std::endl;
         // Matrix<c_float, 1, 7> f = -K_qp* vec_M_diff.transpose()*Jm_t - 2 * (xd.vec8() - xt.vec8()).transpose() * J;
@@ -253,8 +344,9 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
         DQ xt_offset_t = DQ(x_offset);
         DQ xt_mean_r = DQ(xt_mean.block(0,0,4,1));
         DQ xt_obj = xt_mean_r + E_ * 0.5 * xt_offset_t * xt_mean_r;
-        Matrix<c_float, 1, 7> f = -2*K_qp* vec_M_diff.transpose()*Jm_t - 2*(xt_obj.vec8() - xt.vec8()).transpose()* W_cart*K_cart *J;
-        // std::cout<<"f: "<<std::endl<<f<<std::endl;
+        Matrix<c_float, 1, 7> f = -2*K_qp* vec_M_diff.transpose()*Jm_t - 0*2*(xt_obj.vec8() - xt.vec8()).transpose()* W_cart*K_cart *J;
+        // Dyn. Manip.
+        // Matrix<c_float, 1, 7> f = -2* vec_M_dyn_diff.transpose()*Jm_dyn_t *K_qp - 0*2*(xt_obj.vec8() - xt.vec8()).transpose()* W_cart*K_cart *J;
 
         // Constraints:////////////////////////////////////////////////////
         // 1. set min. allowed eigenvalue (min. ellipsoid axis length)
@@ -265,16 +357,20 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
         lb.block(0,0,6,1) = v_max;
         A.block(0,0,6,7) = ev_diff;
         ub.block(0,0,6,1).setConstant(OsqpEigen::INFTY);
+        // lb.block(0,0,6,1).setZero();
+        // A.block(0,0,6,7).setZero();
+        // ub.block(0,0,6,1).setZero();
 
         // 2. cartesian translation interval given by ProMP
-        Eigen::Matrix<double, 3, 1> I_cartesian;
-        I_cartesian.setIdentity();
-        // dxr_t = (x_desired.block(0,0,3,1) - xt_t) * 1;
-        // dxr_t = (x_desired.block(0,0,3,1) - xt_t) * 1 ;
+        // Eigen::Matrix<double, 3, 1> I_cartesian;
+        // I_cartesian.setIdentity();
+        dxr_t = (x_desired.block(0,0,3,1) - xt_t) * 1;
         // dxr_t = -vec3(xt.translation() - xd.translation());
-        // lb.block(6,0,3,1) = dxr_t - x_desired.block(3,0,3,1)*0.1;
+        // std::cout<<"Before cartesian constraint..."<<std::endl;
+
+        // lb.block(6,0,3,1) = dxr_t - x_desired.block(3,0,3,1)*1;
         // A.block(6,0,3,7) = J_geom_t;
-        // ub.block(6,0,3,1) = dxr_t + x_desired.block(3,0,3,1)*0.1;
+        // ub.block(6,0,3,1) = dxr_t + x_desired.block(3,0,3,1)*1;
         lb.block(6,0,3,1).setZero();
         A.block(6,0,3,7).setZero();
         ub.block(6,0,3,1).setZero();
@@ -353,32 +449,8 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
         // A.block(17,0,4,7).setZero();
         // ub.block(17,0,4,1).setZero();
 
-        // Cartesian rotation tracking
-        // double damping = 0.05;
-        // double gain = 2.5;
-        // Matrix<double, 7, 1> dxr_pseudo;
-        // MatrixXd J_r = robot.rotation_jacobian(J);
-        // dxr_pseudo = (J.transpose()*J + damping*damping*MatrixXd::Identity(7, 7)).inverse()*
-        //         J.transpose() * (-gain * vec8(xt - xd));
-        // std::cout<<"Dimension of J_r: "<<J_r.size()<<std::endl;
-        // dxr_pseudo = (J_r.transpose()*J_r + damping*damping*MatrixXd::Identity(7, 7)).inverse()*
-        //         J_r.transpose() * (-gain * vec4(xt.rotation() - xd.rotation()));
-        // dxr_pseudo = J_r.transpose() *(J_r*J_r.transpose() + damping*damping*MatrixXd::Identity(4, 4)).inverse()*
-        //          (-gain * vec4(xt.rotation() - xd.rotation()));
-
-        // Matrix<double, 7, 1> dxr_pseudo_t;
-        // MatrixXd J_t = robot.translation_jacobian(J,xt);
-        // std::cout<<"Dimension of J_t: "<<J_t.size()<<std::endl;
-        // dxr_pseudo_t = (J_t.transpose()*J_t + damping*damping*MatrixXd::Identity(7, 7)).inverse()*
-        //         J_t.transpose() * (-gain * vec4(xt.translation() - xd.translation()));
-        // // dxr_pseudo_t = J_t.transpose() * (J_t*J_t.transpose() + damping*damping*MatrixXd::Identity(4, 4)).inverse()*
-        // //          (-gain * vec4(xt.translation() - xd.translation()));
-        // lb.block(24,0,7,1) = dxr_pseudo_t;
-        // A.block(24,0,7,7) = I;
-        // ub.block(24,0,7,1) = dxr_pseudo_t;
-        
         A_s = A.sparseView();
-        
+        // std::cout<<"Before solver..."<<std::endl;
         // std::cout<<"ub: "<<ub.transpose()<<std::endl;
         OsqpEigen::Solver solver;
         solver.settings()->setVerbosity(false); // print output or not
@@ -395,15 +467,6 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
         solver.initSolver();
         solver.solveProblem();
         dq_res = solver.getSolution();
-        // DQ_PseudoinverseController test_controller(robot_ptr);
-        // test_controller.set_gain(0.5);
-        // test_controller.set_damping(0.05);
-        // test_controller.set_control_objective(Pose);
-        // test_controller.set_stability_threshold(0.00001);
-        // std::cout<<"dq_res_2: "<<dq_res.transpose()<<std::endl;
-        // dq_res = test_controller.compute_setpoint_control_signal(qt,xd_8);
-        // std::cout<<"dq_res_3: "<<dq_res.transpose()<<std::endl;
-        // std::cout<<"Solution dq_t: "<<std::endl<<dq_track.col(i).transpose()<<std::endl;
 
         // for (int j = 0; j<3; j++){
         // MatrixXd Mi;
@@ -429,6 +492,7 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
     }
     // std::cout << "Control finished..." << std::endl;
     // auto t2 = high_resolution_clock::now();
+    // std::cout<<"After solver..."<<std::endl;
 
     /* Getting number of milliseconds as a double. */
     // duration<double, std::milli> ms_double = t2 - t1;

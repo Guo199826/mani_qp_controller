@@ -157,6 +157,7 @@ add_library(${PROJECT_NAME}
   # src/dq2tfm.cpp
   # src/readData.cpp
   src/convert_csv2matrix.cpp
+  src/MassMatrix.cpp
 )
 
 target_link_libraries(${PROJECT_NAME}

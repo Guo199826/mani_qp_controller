@@ -19,8 +19,10 @@ MatrixXd logmap(const MatrixXd &M_1, const MatrixXd &M_2){
     // std::cout<<"eigenvector: "<<std::endl<<EVec<<std::endl;
     MatrixXcd M_pow = EVec.inverse();
     MatrixXcd M_temp = M_2 * EVec * M_log * M_pow;
+    // std::cout<<"M_temp\n"<<M_temp<<std::endl;
     MatrixXd result(size,size);
     result = M_temp.real();
+    // std::cout<<"M_temp_real\n"<<result<<std::endl;
     // std::cout<<"result: "<<std::endl<<result<<std::endl;
     return result;
 }

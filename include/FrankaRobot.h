@@ -6,6 +6,7 @@
 // #include <dqrobotics/utils/DQ_Geometry.h>
 #include <dqrobotics/robot_modeling/DQ_SerialManipulatorMDH.h>
 #include <dqrobotics/utils/DQ_Constants.h>
+#include <eigen3/Eigen/Dense>
 
 namespace DQ_robotics
 {

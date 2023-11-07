@@ -11,9 +11,9 @@
 #     echo "Converted $bag_file to $csv_file"
 # done
 
-# # rostopic echo -b joint_position_traj.bag -p /franka_state_controller/joint_position > joint_position_guid.csv
-# # rostopic echo -b joint_velocity_traj.bag -p /franka_state_controller/joint_velocity > joint_velocity_guid.csv
+# rostopic echo -b joint_position_1102.bag -p /franka_state_controller/joint_position > joint_position_1102.csv
+# rostopic echo -b joint_velocity_1102.bag -p /franka_state_controller/joint_velocity > joint_velocity_1102.csv
 
-rostopic echo -b joint_position_real_1002.bag -p /franka_state_controller/joint_position > joint_position_real_joint_limit_ddq.csv
-rostopic echo -b joint_velocity_real_1002.bag -p /franka_state_controller/joint_velocity > joint_velocity_real_joint_limit_ddq.csv
+rostopic echo -b joint_position_real_mani_1107.bag -p /franka_state_controller/joint_position > joint_position_real_mani_1107.csv
+rostopic echo -b joint_velocity_real_mani_1107.bag -p /franka_state_controller/joint_velocity > joint_velocity_real_mani_1107.csv
 

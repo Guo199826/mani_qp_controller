@@ -121,7 +121,7 @@ bool ManiQpController::init(hardware_interface::RobotHW* robot_hardware,
   // get joint angle trajectory from csv
   joint_states_csv_ = load_csv("/home/gari/mani_check_before/src/mani_qp_controller/data/promp/q_position_mean_traj.csv");
   // joint_states_csv_ = load_csv("/home/gari/mani_tracking_test/src/mani_qp_controller/data/csv/joint_position_traj_0912_1.csv");
-  // joint_states_csv_ = load_csv("/home/gari/mani_tracking_test/src/mani_qp_controller/data/csv/joint_position_demo.csv");
+  // joint_states_csv_ = load_csv("/home/gari/mani_check_before/src/mani_qp_controller/data/bags/joint_position_exam_force_traj.csv");
   // Input txt data (experiments data)
   // std::string path = "/home/gari/mani_check/src/mani_qp_controller/data/bags/csv/joint_configurations_Drill_1.csv";
   // joint_states_csv_ = load_csv(path);
@@ -210,8 +210,8 @@ void ManiQpController::update(const ros::Time& /* time */,
   // Low Pass Filter
   // T_s: sampling time = 0.001 
   double Ts = 0.001;
-  // F_c: cut_off frequency = 1
-  double fc = 0.5;
+  // F_c: cut_off frequency = 1 try reduce!!! smaller, smoother.
+  double fc = 1;
   // a = T_s / (T_s + RC) = 2 * pi * f_c * T_s / (2 * pi * f_c * T_s + 1)
   double a = 2 * 3.14 * fc * Ts / (2 * 3.14 * fc * Ts + 1);
   // Low Pass Filter: y_n = a x_n + (1 - a) * y_{n-1} = y_{n-1} + a * (x_n - y_{n-1})
@@ -233,6 +233,13 @@ void ManiQpController::update(const ros::Time& /* time */,
 
   // Eigen::VectorXd dq_filtered_prev = dq_filtered;
   // dq_filtered = (1. - alpha_dq_filter) * dq_filtered + alpha_dq_filter * dq;
+  // std::array<double, 16> F_T_EE = robot_state.F_T_EE;
+  // std::array<double, 16> EE_T_K = robot_state.EE_T_K;
+
+  // std::array<double, 42UL> J_stiff_array = model_handle_->getZeroJacobian(franka::Frame::kStiffness);
+  // Eigen::Map<Eigen::Matrix<double, 6, 7>> J_stiff(J_stiff_array.data());
+  // std::cout<<"J_stiff: \n"<<J_stiff<<std::endl;
+  // ros::shutdown();
 
   Eigen::Matrix<double, 7, 1> q_desired;
   // q_desired << -0.3, -0.5, -0.00208172, -2, -0.00172665, 1.57002, 0.794316;
@@ -245,14 +252,17 @@ void ManiQpController::update(const ros::Time& /* time */,
   Eigen::Matrix<double, 6, 1> x_desired;
   // For Experiment 1: add cartesian position offset
   Eigen::Matrix<double, 3, 1> offset_x;
-  offset_x<<0, 0.2, 0.1;
+  offset_x<<-0.1, 0.2, 0.1;
+  // offset_x<<0, 0, 0;
+
   x_desired.block(0,0,3,1) = mean_traj.col(rosbag_counter) + offset_x; 
   x_desired.block(3,0,3,1) = sigma_traj_3.col(rosbag_counter); 
   Eigen::Matrix<double, 8, 1> xt_mean_full;
   xt_mean_full = xt_mean_dq_traj.col(rosbag_counter);
   // std::cout<<"q_desired: "<<q_desired.transpose()<<std::endl;
   // std::cout<<"x_desired: "<<x_desired.transpose()<<std::endl;
-  Eigen::VectorXd dq_mod = qp_controller(q, dq_fil, counter, q_desired, x_desired, xt_mean_full, dx_fil, dx_last);
+
+  Eigen::VectorXd dq_mod = qp_controller(q, dq_fil, counter, q_desired, x_desired, xt_mean_full, dx_fil, dx_last, model_handle_);
   dx_last = dx_fil;
   // filter output dq_mod (joint velocity)
   if (i == 0){
