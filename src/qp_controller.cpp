@@ -50,7 +50,7 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
     // 0.1
     c_float ev_min_r = 0.1;
     // 0.02
-    c_float ev_min_t = 0.1;
+    c_float ev_min_t = 0.15;
     Matrix<double,7,1> q_goal;
     q_goal = q_desired;
  
@@ -88,9 +88,6 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
     // F_x_Ctotal.fill(0);
     // F_x_Ctotal[2] = 0.1034;
     // Map<Matrix<double, 7, 7>> Mass(mass_array.data());
-    
-    // std::cout<<"Test Mass: \n"<<Mass<<std::endl<<Mass_<<std::endl;
-    // std::cout<<"Mass: "<<std::endl<<Mass;
 
     // VectorXd q_ (n);
     // VectorXd q_1 (n);
@@ -330,7 +327,7 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
         Matrix<c_float, 31, 7> A;
         Matrix<c_float, 31, 1> ub;
 
-        Matrix<c_float, 7, 7> H = 1*Jm_t.transpose()*Jm_t + J.transpose() * W_cart * J;
+        Matrix<c_float, 7, 7> H = 1*Jm_t.transpose()*Jm_t + 0*J.transpose() * W_cart * J;
         // Dyn. Manip.
         // Matrix<c_float, 7, 7> H = 1*Jm_dyn_t.transpose()*Jm_dyn_t + 0*J.transpose() * W_cart * J;
 
@@ -347,7 +344,7 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
         DQ xt_mean_r = DQ(xt_mean.block(0,0,4,1));
         DQ xt_obj = xt_mean_r + E_ * 0.5 * xt_offset_t * xt_mean_r;
         // Matrix<c_float, 1, 7> f = -2*K_qp* vec_M_diff.transpose()*Jm_t - 2*(xt_obj.vec8() - xt.vec8()).transpose()* W_cart*K_cart *J;
-        Matrix<c_float, 1, 7> f = -2*K_qp* vec_M_diff.transpose()*Jm_t - 2*(xd.vec8() - xt.vec8()).transpose()* W_cart*K_cart *J;
+        Matrix<c_float, 1, 7> f = -2*K_qp* vec_M_diff.transpose()*Jm_t - 0*2*(xd.vec8() - xt.vec8()).transpose()* W_cart*K_cart *J;
 
         // Dyn. Manip.
         // Matrix<c_float, 1, 7> f = -2* vec_M_dyn_diff.transpose()*Jm_dyn_t *K_qp - 0*2*(xt_obj.vec8() - xt.vec8()).transpose()* W_cart*K_cart *J;
@@ -375,12 +372,12 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
         // lb.block(6,0,3,1) = dxr_t - x_desired.block(3,0,3,1)*1;
         // A.block(6,0,3,7) = J_geom_t;
         // ub.block(6,0,3,1) = dxr_t + x_desired.block(3,0,3,1)*1;
-        lb.block(6,0,3,1) = dxr_t - 0.2 * I_cartesian;
-        A.block(6,0,3,7) = J_geom_t;
-        ub.block(6,0,3,1) = dxr_t + 0.2 * I_cartesian;
-        // lb.block(6,0,3,1).setZero();
-        // A.block(6,0,3,7).setZero();
-        // ub.block(6,0,3,1).setZero();
+        // lb.block(6,0,3,1) = dxr_t - 0.2 * I_cartesian;
+        // A.block(6,0,3,7) = J_geom_t;
+        // ub.block(6,0,3,1) = dxr_t + 0.2 * I_cartesian;
+        lb.block(6,0,3,1).setZero();
+        A.block(6,0,3,7).setZero();
+        ub.block(6,0,3,1).setZero();
 
         // MatrixXd lower = (dxr_t - x_desired.block(3,0,3,1));
         // MatrixXd upper = (dxr_t + x_desired.block(3,0,3,1));
