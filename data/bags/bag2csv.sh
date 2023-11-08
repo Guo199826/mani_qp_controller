@@ -1,7 +1,8 @@
 # specify the directory containing the bag files
-dir_pos="/home/gari/mani_tracking_test/src/mani_qp_controller/data/bags/pos"
-dir_vel="/home/gari/mani_tracking_test/src/mani_qp_controller/data/bags/vel"
-csv_dir="/home/gari/mani_tracking_test/src/mani_qp_controller/data/csv"
+dir_pos="/home/gari/mani_tracking_test_orig/src/mani_qp_controller/data/bags/pos"
+dir_vel="/home/gari/mani_tracking_test_orig/src/mani_qp_controller/data/bags/vel"
+dir_force="/home/gari/mani_tracking_test_orig/src/mani_qp_controller/data/bags/force"
+csv_dir="/home/gari/mani_tracking_test_orig/src/mani_qp_controller/data/csv"
 
 # loop through all .bag files in the folder and convert into csv without the title line
 # For position.bag:
@@ -21,6 +22,17 @@ for bag_file in $dir_vel/*.bag; do
     base_filename=$(basename "$bag_file" .bag)
     # specify the topic name as /xxxx
     rostopic echo -b "$bag_file" -p /franka_state_controller/joint_velocity > "$csv_dir/$base_filename.csv"
+    # rostopic echo -b "$bag_file" -p /franka_state_controller/joint_position > "$dir/$base_filename.csv"
+    echo "Converted $bag_file to $csv_dir/$base_filename.csv"
+    sed -i '1d' "$csv_dir/$base_filename.csv"
+done
+
+# For force.bag:
+for bag_file in $dir_force/*.bag; do
+    csv_file="${bag_file%.bag}.csv"
+    base_filename=$(basename "$bag_file" .bag)
+    # specify the topic name as /xxxx
+    rostopic echo -b "$bag_file" -p /franka_state_controller/F_ext > "$csv_dir/$base_filename.csv"
     # rostopic echo -b "$bag_file" -p /franka_state_controller/joint_position > "$dir/$base_filename.csv"
     echo "Converted $bag_file to $csv_dir/$base_filename.csv"
     sed -i '1d' "$csv_dir/$base_filename.csv"

@@ -20,13 +20,13 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
     // K_adm_vec << 10, 10, 10, 2, 2, 2; 
     // K_adm_vec << 0.1, 0.1, 0.1, 0.05, 0.05, 0.05; 
 
-    K_adm_vec << 0.5, 0.5, 0.5, 0.5, 0.5, 0.1, 0.5; 
+    K_adm_vec << 1, 1, 1, 0.5, 0.5, 0.5; 
     K_adm = K_adm_vec.asDiagonal();
     Matrix<double, 6, 6> D_adm;
     Matrix<double, 6, 1> D_adm_vec;
     D_adm_vec << 20, 20, 20, 20, 20, 20;
     // set min. allowed eigenvalue (min. ellipsoid axis length)
-    c_float ev_min_r = 0.02;
+    c_float ev_min_r = 0.1;
     c_float ev_min_t = 0.02;
     ///////////////////////////////////////////////////////////////////
     Matrix<double,7,1> q_goal;
@@ -58,7 +58,7 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
     Matrix<double, 7, 1> q_max = robot.get_upper_q_limit();
     // joint acceleration bounds
     Matrix<double, 7, 1> ddq_max;
-    ddq_max.setConstant(8); // original: 500
+    ddq_max.setConstant(10); // original: 500
     Matrix<double, 7, 1> dq_min_q;
     Matrix<double, 7, 1> dq_max_q;
     Matrix<double, 7, 1> dq_min_ddq;
@@ -317,90 +317,91 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
         solver.data()->setUpperBound(ub);
         solver.initSolver();
         solver.solveProblem();
-        // dq_res_1 = solver.getSolution();
-        dq_res = solver.getSolution();
+        
+        // dq_res = solver.getSolution();
+        dq_res_1 = solver.getSolution();
 
-        // ///////////////////////////////////////////////////////////////////////////////////////////        
-        // //// Second QP ////////////////////////////////////////////////////////////////////////////
-        // // Cost Function: Hessian matrix H and Gradient f
-        // // velocity from 
-        // Matrix<c_float, 7, 7> H_2 = Jm_t.transpose()*Jm_t;
-        // H_2_s = H_2.sparseView();
-        // // std::cout<<"H: "<<std::endl<<H<<std::endl;
-        // H_2_s.pruned(1e-9); // set those who smaller than 0.01 as zero
-        // // std::cout<<"H_S : "<<std::endl<<H_s<<std::endl;
-        // // Matrix<c_float, 1, 7> f = -0*K_qp* vec_M_diff.transpose()*Jm_t - 2*admittance_signal.transpose()*J_geom;
-        // Matrix<c_float, 1, 7> f_2 = -K_qp* vec_M_diff.transpose()*Jm_t; // 
+        ///////////////////////////////////////////////////////////////////////////////////////////        
+        //// Second QP ////////////////////////////////////////////////////////////////////////////
+        // Cost Function: Hessian matrix H and Gradient f
+        // velocity from 
+        Matrix<c_float, 7, 7> H_2 = Jm_t.transpose()*Jm_t;
+        H_2_s = H_2.sparseView();
+        // std::cout<<"H: "<<std::endl<<H<<std::endl;
+        H_2_s.pruned(1e-9); // set those who smaller than 0.01 as zero
+        // std::cout<<"H_S : "<<std::endl<<H_s<<std::endl;
+        // Matrix<c_float, 1, 7> f = -0*K_qp* vec_M_diff.transpose()*Jm_t - 2*admittance_signal.transpose()*J_geom;
+        Matrix<c_float, 1, 7> f_2 = -K_qp* vec_M_diff.transpose()*Jm_t; // 
 
-        // // Initialize matrices for constraints
-        // Matrix<c_float, 33, 1> lb_2;
-        // Matrix<c_float, 33, 7> A_2;
-        // Matrix<c_float, 33, 1> ub_2;
-        // // Constraints:
-        // // 1. Inequality Constraint:---------------------------------------
-        // // set min. allowed eigenvalue (min. ellipsoid axis length)
-        // lb_2.block(0,0,6,1) = v_max;
-        // A_2.block(0,0,6,7) = ev_diff;
-        // ub_2.block(0,0,6,1).setConstant(OsqpEigen::INFTY);
-        // // lb_2.block(0,0,6,1).setZero(); 
-        // // A_2.block(0,0,6,7).setZero();
-        // // ub_2.block(0,0,6,1).setZero();
+        // Initialize matrices for constraints
+        Matrix<c_float, 33, 1> lb_2;
+        Matrix<c_float, 33, 7> A_2;
+        Matrix<c_float, 33, 1> ub_2;
+        // Constraints:
+        // 1. Inequality Constraint:---------------------------------------
+        // set min. allowed eigenvalue (min. ellipsoid axis length)
+        lb_2.block(0,0,6,1) = v_max;
+        A_2.block(0,0,6,7) = ev_diff;
+        ub_2.block(0,0,6,1).setConstant(OsqpEigen::INFTY);
+        // lb_2.block(0,0,6,1).setZero(); 
+        // A_2.block(0,0,6,7).setZero();
+        // ub_2.block(0,0,6,1).setZero();
 
-        // // 2. Equality Constraint for cartesian tracking 
-        // // (cartesian pose from guidance)-------------------
-        // // tune the gain! To give cartesian tracking some space
-        // dx_guid = J_geom * dq_res_1;
-        // Matrix<double,6,1> I_x;
-        // I_x.setIdentity();
-        // lb_2.block(6,0,6,1) = dx_guid - I_x*0.1; 
-        // A_2.block(6,0,6,7) = J_geom;
-        // ub_2.block(6,0,6,1) = dx_guid + I_x*0.1;
-        // // lb_2.block(6,0,6,1).setZero(); 
-        // // A_2.block(6,0,6,7).setZero();
-        // // ub_2.block(6,0,6,1).setZero();
-        // // lb_2.block(12,0,7,1) = lb_limits;
-        // // A_2.block(12,0,7,7) = I;
-        // // ub_2.block(12,0,7,1) = ub_limits;
-        // // lb_2.block(12,0,7,1).setZero();
-        // // A_2.block(12,0,7,7).setZero();
-        // // ub_2.block(12,0,7,1).setZero();
-        // // lb_2.block(12,0,7,1) = dq_min;
-        // // A_2.block(12,0,7,7) = I;
-        // // ub_2.block(12,0,7,1) = dq_max;
+        // 2. Equality Constraint for cartesian tracking 
+        // (cartesian pose from guidance)-------------------
+        // tune the gain! To give cartesian tracking some space
+        dx_guid = J_geom * dq_res_1;
+        Matrix<double,6,1> I_x;
+        I_x.setIdentity();
+        lb_2.block(6,0,6,1) = dx_guid - I_x*0.1; 
+        A_2.block(6,0,6,7) = J_geom;
+        ub_2.block(6,0,6,1) = dx_guid + I_x*0.1;
+        // lb_2.block(6,0,6,1).setZero(); 
+        // A_2.block(6,0,6,7).setZero();
+        // ub_2.block(6,0,6,1).setZero();
+        // lb_2.block(12,0,7,1) = lb_limits;
+        // A_2.block(12,0,7,7) = I;
+        // ub_2.block(12,0,7,1) = ub_limits;
         // lb_2.block(12,0,7,1).setZero();
         // A_2.block(12,0,7,7).setZero();
         // ub_2.block(12,0,7,1).setZero();
-        // lb_2.block(19,0,7,1) = dq_min_q;
-        // A_2.block(19,0,7,7) = I;
-        // ub_2.block(19,0,7,1) = dq_max_q;
-        // // lb_2.block(19,0,7,1).setZero();
-        // // A_2.block(19,0,7,7).setZero();
-        // // ub_2.block(19,0,7,1).setZero();
-        // // lb_2.block(26,0,7,1) = dq_min_ddq;
-        // // A_2.block(26,0,7,7) = I;
-        // // ub_2.block(26,0,7,1) = dq_max_ddq;
-        // lb_2.block(26,0,7,1).setZero();
-        // A_2.block(26,0,7,7).setZero();
-        // ub_2.block(26,0,7,1).setZero();
-        // // --------------------------------------------------------------------
+        // lb_2.block(12,0,7,1) = dq_min;
+        // A_2.block(12,0,7,7) = I;
+        // ub_2.block(12,0,7,1) = dq_max;
+        lb_2.block(12,0,7,1).setZero();
+        A_2.block(12,0,7,7).setZero();
+        ub_2.block(12,0,7,1).setZero();
+        lb_2.block(19,0,7,1) = dq_min_q;
+        A_2.block(19,0,7,7) = I;
+        ub_2.block(19,0,7,1) = dq_max_q;
+        // lb_2.block(19,0,7,1).setZero();
+        // A_2.block(19,0,7,7).setZero();
+        // ub_2.block(19,0,7,1).setZero();
+        // lb_2.block(26,0,7,1) = dq_min_ddq;
+        // A_2.block(26,0,7,7) = I;
+        // ub_2.block(26,0,7,1) = dq_max_ddq;
+        lb_2.block(26,0,7,1).setZero();
+        A_2.block(26,0,7,7).setZero();
+        ub_2.block(26,0,7,1).setZero();
+        // --------------------------------------------------------------------
         
-        // A_2_s = A_2.sparseView();
-        // // std::cout<<"ub: "<<ub.transpose()<<std::endl;
-        // OsqpEigen::Solver solver_2;
-        // solver_2.settings()->setVerbosity(false); // print output or not
-        // solver_2.settings()->setAlpha(1.5); // ADMM relaxation parameter/step size/penalty parameter
-        // solver_2.data()->setNumberOfVariables(7);
-        // solver_2.data()->setNumberOfConstraints(33); 
-        // solver_2.data()->setHessianMatrix(H_2_s);
-        // //solver.data()->setHessianMatrix(h_h);
-        // solver_2.data()->setGradient(f_2.transpose());
-        // solver_2.data()->setLinearConstraintsMatrix(A_2_s);
-        // solver_2.data()->setLowerBound(lb_2);
-        // solver_2.data()->setUpperBound(ub_2);
-        // solver_2.initSolver();
-        // solver_2.solveProblem();
+        A_2_s = A_2.sparseView();
+        // std::cout<<"ub: "<<ub.transpose()<<std::endl;
+        OsqpEigen::Solver solver_2;
+        solver_2.settings()->setVerbosity(false); // print output or not
+        solver_2.settings()->setAlpha(1.5); // ADMM relaxation parameter/step size/penalty parameter
+        solver_2.data()->setNumberOfVariables(7);
+        solver_2.data()->setNumberOfConstraints(33); 
+        solver_2.data()->setHessianMatrix(H_2_s);
+        //solver.data()->setHessianMatrix(h_h);
+        solver_2.data()->setGradient(f_2.transpose());
+        solver_2.data()->setLinearConstraintsMatrix(A_2_s);
+        solver_2.data()->setLowerBound(lb_2);
+        solver_2.data()->setUpperBound(ub_2);
+        solver_2.initSolver();
+        solver_2.solveProblem();
 
-        // dq_res = solver_2.getSolution();
+        dq_res = solver_2.getSolution();
         ////////////////////////////////////////////////////////////////////////////////////////////
         // std::cout<<"Solution dq_t: "<<std::endl<<dq_track.col(i).transpose()<<std::endl;
         

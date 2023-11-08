@@ -135,8 +135,8 @@ bool ManiQpController::init(hardware_interface::RobotHW* robot_hardware,
   F_ext_fil_last.setZero();
 
   // get joint angle trajectory from csv
-  // std::string path ="/home/gari/mani_tracking_test/src/mani_qp_controller/data/csv/joint_position_exp3.csv";
-  std::string path = "/home/gari/mani_check_before/src/mani_qp_controller/data/promp/q_position_mean_traj.csv";
+  std::string path ="/home/gari/mani_tracking_test_orig/src/mani_qp_controller/data/csv/joint_position_real_guid_task_1108.csv";
+  // std::string path = "/home/gari/mani_check_before/src/mani_qp_controller/data/promp/q_position_mean_traj.csv";
   joint_states_csv_ = load_csv(path);
   // joint_states_csv = joint_states_csv_;
   col = joint_states_csv_.cols();
@@ -352,8 +352,8 @@ void ManiQpController::update(const ros::Time& /* time */,
 
   Eigen::Matrix<double, 7, 1> q_desired;
   // q_desired << -0.3, -0.5, -0.00208172, -2, -0.00172665, 1.57002, 0.794316;
-  // size_t rosbag_counter = i/10;
-  size_t rosbag_counter = i/1000;
+  size_t rosbag_counter = i/10;
+  // size_t rosbag_counter = i/1000;
 
   // std::cout<<"counter: "<<rosbag_counter<<std::endl;
   q_desired = joint_states_csv_.col(rosbag_counter);
