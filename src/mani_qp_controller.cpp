@@ -352,8 +352,8 @@ void ManiQpController::update(const ros::Time& /* time */,
 
   Eigen::Matrix<double, 7, 1> q_desired;
   // q_desired << -0.3, -0.5, -0.00208172, -2, -0.00172665, 1.57002, 0.794316;
-  size_t rosbag_counter = i/10;
-  // size_t rosbag_counter = i/1000;
+  // size_t rosbag_counter = i/10;
+  size_t rosbag_counter = i/1000;
 
   // std::cout<<"counter: "<<rosbag_counter<<std::endl;
   q_desired = joint_states_csv_.col(rosbag_counter);

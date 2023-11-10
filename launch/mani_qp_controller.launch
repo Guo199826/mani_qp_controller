@@ -28,14 +28,14 @@
         if="$(arg rosbag_record_traj)" />
   <!-- record real motion -->
   <node pkg="rosbag" type="record" name="rosbag_record_q_real"
-        args="record -O /home/gari/mani_tracking_test_orig/src/mani_qp_controller/data/bags/pos/joint_position_real_guid_exec_task_1108_2.bag /franka_state_controller/joint_position"
+        args="record -O /home/gari/mani_tracking_test_orig/src/mani_qp_controller/data/bags/pos/joint_position_real_guid_task_1110.bag /franka_state_controller/joint_position"
         if="$(arg rosbag_record_real)" />
   <node pkg="rosbag" type="record" name="rosbag_record_dq_real"
-        args="record -O /home/gari/mani_tracking_test_orig/src/mani_qp_controller/data/bags/vel/joint_velocity_real_guid_exec_task_1108_2.bag /franka_state_controller/joint_velocity"
+        args="record -O /home/gari/mani_tracking_test_orig/src/mani_qp_controller/data/bags/vel/joint_velocity_real_guid_task_1110.bag /franka_state_controller/joint_velocity"
         if="$(arg rosbag_record_real)" />
 
   <node pkg="rosbag" type="record" name="rosbag_record_F_ext"
-        args="record -O /home/gari/mani_tracking_test_orig/src/mani_qp_controller/data/bags/force/ext_force_guid_exec_task_1108_2.bag /franka_state_controller/F_ext"
+        args="record -O /home/gari/mani_tracking_test_orig/src/mani_qp_controller/data/bags/force/ext_force_guid_task_1110.bag /franka_state_controller/F_ext"
         if="$(arg rosbag_record_real)" />
 
 </launch>
