@@ -43,7 +43,6 @@ namespace DQ_robotics
     //     std::cout<<"kinematics running..."<<std::endl;
     //     return franka;
     // }
-
     MatrixXd FrankaRobot::_get_mdh_matrix()
     {
         const double pi2 = pi/2.0;

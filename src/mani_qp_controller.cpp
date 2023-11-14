@@ -107,97 +107,9 @@ bool ManiQpController::init(hardware_interface::RobotHW* robot_hardware,
   // joint_states_csv_ = load_csv("/home/gari/mani_tracking_test/src/mani_qp_controller/data/csv/joint_position_traj_0912_1.csv");
   // joint_states_csv_ = load_csv("/home/gari/mani_tracking_test/src/mani_qp_controller/data/csv/joint_position_demo.csv");
   // Input txt data (experiments data)
-  std::string path = "/home/gari/mani_check/src/mani_qp_controller/data/bags/csv/joint_configurations_Drill_2.csv";
+  std::string path = "/home/yre/Desktop/Robotics-Tutorials/prediction_move_up/all_pose.csv";
   joint_states_csv_ = load_csv(path);
-  std::string joca_path = "/home/gari/icra2024_YuGongSilvaFigueredoPeper/data_output/geometrical_Jacobian_Drill_1.csv";
-  std::cout<<"h1111111111111ol: " << std::endl;
-  human_jacob = load_csv64(joca_path);
-  std::cout<<"h22222222222222222222l: " << std::endl;
-  // std::string wrist_path = "/home/gari/icra2024_YuGongSilvaFigueredoPeper/data_output/wrist_pose_Drill_2.csv";
-  std::string wrist_path = "/home/gari/mani_check/src/mani_qp_controller/data/bags/csv/wrist_pose_shoulder_Drill_1.csv";
-
-  wrist_pose = load_csv_8(wrist_path);
-  //////////////////////////////////////////////////////
-  col = wrist_pose.cols();
-  // col = human_jacob.cols();
-
-  // std::cout<<"human_jacobcol: " << human_jacob.col(0) <<std::endl;
-
-  // mean_traj = load_csv_3("/home/gari/mani_check/src/mani_qp_controller/data/promp/xtrans_mean_traj.csv");
-  // // mean_traj = load_csv_3("/home/gari/mani_tracking_test/src/mani_qp_controller/data/csv/cartesian_translation.csv");
-  // std::cout<<"mean_traj" << mean_traj.col(0) <<std::endl;
-
-  // sigma_traj_3 = load_csv_3("/home/gari/mani_check/src/mani_qp_controller/data/promp/xtrans_sigma_traj_3.csv");
-  // sigma_traj_3 = load_csv_3("/home/gari/mani_tracking_test/src/mani_qp_controller/data/csv/cartesian_translation.csv");
   
-  // // joint_states_csv_.resize(7,col);
-  // std::cout<<"CSV file converted into Eigen::Matrix"<<std::endl;
-  // std::cout<<"Matrix: \n"<<joint_states_csv_.col(0).transpose()<<std::endl;
-  // std::cout<<"Matrix: \n"<<joint_states_csv_.col(1).transpose()<<std::endl;
-  // std::cout<<"Matrix: \n"<<joint_states_csv_.col(2).transpose()<<std::endl;
-  
-  // q2xt
-  // DQ_SerialManipulatorMDH robot = FrankaRobot::kinematics();
-  // std::cout<<"111111111111111111111111" <<std::endl;
-  // x_t_traj_.resize(3,col);
-  // xt_mean_dq_traj.resize(8,col);
-  // std::cout<<"111222222222222222221" <<std::endl;
-
-  // for(size_t i=0; i<col; i++){
-  //     Eigen::Matrix<double, 7, 1> q = joint_states_csv_.col(i);
-  //     Eigen::Matrix<double, 3, 1> xt_mean = mean_traj.col(i);
-  //     std::cout<<"1113333333333333333333111111111" <<std::endl;
-  //     Eigen::Matrix<double, 4, 1> trans;
-  //     trans(0) = 0;
-  //     trans.block(1,0,3,1) = xt_mean;
-  //     DQ xt_mean_t = DQ(trans);
-  //     std::cout<<"1144444444444444444444444444444411" <<std::endl;
-  //     // forward kinematic model
-  //     DQ xt = robot.fkm(q);
-  //     Eigen::Matrix<double,3,1> xt_t = xt.translation().vec3();
-  //     DQ xt_r = xt.rotation();
-  //     DQ xt_mean_dq = xt_r + E_ * 0.5 * xt_mean_t * xt_r;
-  //     Eigen::Matrix<double, 8, 1> xt_indiv = vec8(xt_mean_dq);
-  //     xt_mean_dq_traj.col(i) = xt_indiv;
-  //     x_t_traj_.col(i) = xt_t;
-  //     std::cout<<"114444455555555555555555555444411" <<std::endl;
-  // }
-  // // x_t_traj = q2x(joint_states_csv_,col);
-  // // x_t_traj = x_t_traj_;
-  // std::cout<<"test x_t_traj: \n"<<x_t_traj_.col(1).transpose()<<std::endl;
-  jaco_ten.resize(6, 8, col);
-  for (int i=0; i<col; i++){
-    Eigen::MatrixXd geom_huma;
-    Eigen::Matrix<double, 6, 8> geom_J_hum;
-    geom_huma = human_jacob.col(i);
-    geom_huma.resize(8,8);
-    geom_huma = geom_huma.transpose();
-    geom_J_hum.block(0,0,3,8) = geom_huma.block(1,0,3,8);
-    geom_J_hum.block(3,0,3,8) = geom_huma.block(5,0,3,8);
-    array<DenseIndex, 3> offset = {0, 0, i};
-    array<DenseIndex, 3> extent = {6, 8, 1};
-    Tensor<double, 3> J_result_m2t = TensorMap<Tensor<double, 3>>(geom_J_hum.data(), 6, 8, 1);
-    jaco_ten.slice(offset, extent) = J_result_m2t;
-    DQ car_pose;
-    car_pose = DQ(wrist_pose.col(i)).normalize();
-    // Vector3d xt_mean;
-    // // std::cout<<"car_posen: "<<car_pose<<std::endl;
-    // // std::cout<<"crosbag_count: "<<rosbag_counter<<std::endl;
-    
-    // xt_mean = car_pose.translation().vec3();
-    
-    
-    // bool judge;
-    // double test;
-    // test = wrist_pose.col(rosbag_counter)(0,0);
-    // judge = std::isnan(test);
-    // if (judge){
-    //   wrist_last = wrist_pose;
-    //   human_jacob_last = human_jacob;    
-    // }
-  }
-
-  // bool write_xt;
   // MatrixXd save_tran;
   // write_xt = true;
   // save_tran = wrist_pose.transpose();
@@ -251,6 +163,7 @@ void ManiQpController::update(const ros::Time& /* time */,
   elapsed_time_ += period; // 34
 
   DQ_SerialManipulatorMDH robot = FrankaRobot::kinematics();
+  DQ_SerialManipulatorMDH realsenserobot = RealSenseRobot::kinematics();
   // std::cout<<"111111111111111111111111" <<std::endl;
 
   std::array<double, 7> q_array = robot_state.q;
@@ -259,56 +172,7 @@ void ManiQpController::update(const ros::Time& /* time */,
 
   size_t rosbag_counter = i/10;
   Eigen::Matrix<double, 8, 1> q_desired = joint_states_csv_.col(i);
-  // Eigen::Matrix<double, 3, 1> xt_mean = mean_traj.col(i);
-  DQ car_pose;
-  Matrix<double, 6, 8> geom_hu;
-
-  array<DenseIndex, 3> offset = {0, 0, rosbag_counter};
-  array<DenseIndex, 3> extent = {6, 8, 1};
-  Tensor<double, 3> J_result_m2t;
-  J_result_m2t = jaco_ten.slice(offset, extent);
-  geom_hu = Map<Matrix<double,6,8>> (J_result_m2t.data(), 6, 8);
-  Matrix<double, 8, 1> xt_human;
-  // xt_human = wrist_pose.col(rosbag_counter);
-
-  DQ xt = robot.fkm(q);
-  DQ xt_tt = xt.translation();
-  std::cout<<"Actual xt_t: "<<xt_tt<<std::endl;
-  DQ xt_tr = xt.rotation();
-  std::cout<<"Actual xt_r: "<<xt_tr<<std::endl;
-
-  // reasselble the cartesian pose (from T & R) to 8x1 vector
-  DQ xt_t = 0.001 * DQ(wrist_pose.col(rosbag_counter)).normalize().translation();
-  std::cout<<"xt_t: "<<xt_t<<std::endl;
-  DQ xt_r = 0.01*DQ(wrist_pose.col(rosbag_counter)).normalize().rotation();
-  std::cout<<"xt_r: "<<xt_r<<std::endl;
-
-  DQ xt_mean_dq = xt_r + E_ * 0.5 * xt_t * xt_r;
   
-  car_pose = xt_mean_dq.normalize();
-  xt_human = car_pose.vec8();
-  Vector3d xt_mean;
-  // std::cout<<"crosbag_count: "<<rosbag_counter<<std::endl;
-  
-  xt_mean = car_pose.translation().vec3();
-  // std::cout<<"car_pose: "<<car_pose<<std::endl;
-  // std::cout<<"xt_mean1: "<<xt_mean<<std::endl;
-  // Eigen::Matrix<double, 4, 1> trans;
-  // trans(0) = 0;
-  // trans.block(1,0,3,1) = xt_mean;
-  // DQ xt_mean_t = DQ(trans);
-  // // forward kinematic model
-  // DQ xt_r = car_pose.rotation();
-  // DQ xt_mean_dq = xt_r + E_ * 0.5 * xt_mean_t * xt_r;
-  // Eigen::Matrix<double, 8, 1> xt_indiv = vec8(car_pose); 
-
-  // wrist_last = wrist_pose;
-  // human_jacob_last = human_jacob;    
-  // x_t_traj = q2x(joint_states_csv_,col);
-  // x_t_traj = x_t_traj_;
-
-  // double t0 = ros::Time::now().toSec();
-
   robot_state = state_handle_->getRobotState();
 
   // get joint position
@@ -368,13 +232,13 @@ void ManiQpController::update(const ros::Time& /* time */,
   Eigen::Matrix<double, 3, 1> Ide;
   Ide.setIdentity(); 
   x_desired.block(3,0,3,1) = Ide * 0.1; 
-  x_desired.block(0,0,3,1) = xt_mean;
+  x_desired.block(0,0,3,1).setZero();
   Eigen::Matrix<double, 8, 1> xt_mean_full;
-  xt_mean_full = car_pose.vec8();
+  xt_mean_full.setZero();
   // std::cout<<"q_desired: "<<q_desired.transpose()<<std::endl;
   // std::cout<<"x_desired: "<<x_desired.transpose()<<std::endl;
   // Eigen::VectorXd dq_mod = qp_controller(q, dq, counter, q_desired, x_desired, xt_mean_full, dx_fil, dx_last, geom_hu);
-  Eigen::VectorXd dq_mod = qp_controller(q, dq, counter, q_desired, x_desired, xt_human, dx_fil, dx_last, geom_hu);
+  Eigen::VectorXd dq_mod = qp_controller(q, dq, counter, q_desired, dx_fil, dx_last);
 
   dx_last = dx_fil;
   // filter output dq_mod (joint velocity)

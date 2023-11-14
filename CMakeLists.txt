@@ -148,7 +148,9 @@ add_library(${PROJECT_NAME}
   src/geomJac.cpp
   src/spdToVec.cpp
   src/FrankaRobot.cpp
+  src/RealSenseRobot.cpp
   include/FrankaRobot.h
+  include/RealSenseRobot.h
   src/manipulabilityJacobian.cpp
   src/redManipulabilityJacobian.cpp
   src/logmap.cpp

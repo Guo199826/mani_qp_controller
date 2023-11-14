@@ -31,6 +31,7 @@ Prerequisites:
 #include <dqrobotics/DQ.h>
 // #include <dqrobotics/interfaces/vrep/DQ_VrepInterface.h>
 #include "../include/FrankaRobot.h"
+#include "../include/RealSenseRobot.h"
 // #include <dqrobotics/robot_modeling/DQ_SerialManipulator.h>
 // #include <dqrobotics/robot_control/DQ_PseudoinverseController.h>
 #include <thread>
@@ -55,10 +56,7 @@ using namespace DQ_robotics;
 
 VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &dq_, 
                         Index &counter, const Matrix<double,8,1> &q_desired,
-                        const Matrix<double,6,1> &x_desired,
-                        const Matrix<double, 8, 1> &xt_mean,
                         const Matrix<double,6,1> &dx,
-                        const Matrix<double,6,1> &dx_last,
-                        const MatrixXd &geom_Jaco);
+                        const Matrix<double,6,1> &dx_last);
 
 #endif
