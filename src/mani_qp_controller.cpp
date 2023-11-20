@@ -252,7 +252,7 @@ void ManiQpController::update(const ros::Time& /* time */,
   Eigen::Matrix<double, 6, 1> x_desired;
   // For Experiment 1: add cartesian position offset
   Eigen::Matrix<double, 3, 1> offset_x;
-  offset_x<<-0.1, 0.2, 0.1;
+  offset_x<<0.08, 0.2, 0.1;
   // offset_x<<0, 0, 0;
 
   x_desired.block(0,0,3,1) = mean_traj.col(rosbag_counter) + offset_x; 

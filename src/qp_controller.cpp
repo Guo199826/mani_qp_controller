@@ -134,7 +134,7 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
     J_goal = robot.pose_jacobian(q_goal);
     // J_goal = model_handle->getZeroJacobian();
     J_geom_goal = geomJac(robot, J_goal, q_goal, n);
-    J_geom_goal_axis = J_geom_goal.row(3); // translation in y as primary tracking object/rotation in x
+    J_geom_goal_axis = J_geom_goal.row(4); // translation in y as primary tracking object/rotation in x
     Me_d_axis = J_geom_goal_axis*J_geom_goal_axis.transpose();
     Me_d = J_geom_goal*J_geom_goal.transpose();
     // desired Mass matrix
@@ -250,7 +250,7 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
         J_geom = geomJac(robot, J, qt, n); 
         J_geom_t = J_geom.block(3, 0, 3, n); 
         J_geom_r = J_geom.block(0, 0, 3, n); 
-        J_geom_t_axis = J_geom_t.row(0); // translation in y as primary tracking object
+        J_geom_t_axis = J_geom_t.row(1); // translation in y as primary tracking object
         // std::cout<<"----------J_geom_t: "<<std::endl<<J_geom_t<<std::endl;
         // std::cout<<"----------J_geom_t_axis: "<<std::endl<<J_geom_t_axis<<std::endl;
 
@@ -300,7 +300,7 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
         // vec_M_dyn_diff = spd2vec_vec(M_dyn_diff); // 21x1 // dyn. Manip.
         ////////////////////////////////////////////////////////////////////////////////////////////
 
-        array<DenseIndex, 3> offset_axis = {3, 0, 0}; // translation in y
+        array<DenseIndex, 3> offset_axis = {4, 0, 0}; // translation in y
         // array<DenseIndex, 3> offset_axis = {0, 0, 0}; // rotation in x
         array<DenseIndex, 3> extent_axis = {1, 7, 7};
         J_grad_axis = J_grad.slice(offset_axis, extent_axis);
@@ -328,7 +328,7 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
         Matrix<c_float, 31, 7> A;
         Matrix<c_float, 31, 1> ub;
 
-        Matrix<c_float, 7, 7> H = 1*Jm_t.transpose()*Jm_t + 0*J.transpose() * W_cart * J;
+        Matrix<c_float, 7, 7> H = 1*Jm_t.transpose()*Jm_t + J.transpose() * W_cart * J;
         // Dyn. Manip.
         // Matrix<c_float, 7, 7> H = 1*Jm_dyn_t.transpose()*Jm_dyn_t + 0*J.transpose() * W_cart * J;
 
@@ -344,7 +344,7 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
         DQ xt_offset_t = DQ(x_offset);
         DQ xt_mean_r = DQ(xt_mean.block(0,0,4,1));
         DQ xt_obj = xt_mean_r + E_ * 0.5 * xt_offset_t * xt_mean_r;
-        Matrix<c_float, 1, 7> f = -2*K_qp* vec_M_diff.transpose()*Jm_t - 0*2*(xt_obj.vec8() - xt.vec8()).transpose()* W_cart*K_cart *J;
+        Matrix<c_float, 1, 7> f = -2*K_qp* vec_M_diff.transpose()*Jm_t - 2*(xt_obj.vec8() - xt.vec8()).transpose()* W_cart*K_cart *J;
         // Dyn. Manip.
         // Matrix<c_float, 1, 7> f = -2* vec_M_dyn_diff.transpose()*Jm_dyn_t *K_qp - 0*2*(xt_obj.vec8() - xt.vec8()).transpose()* W_cart*K_cart *J;
 
@@ -368,12 +368,12 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
         // dxr_t = -vec3(xt.translation() - xd.translation());
         // std::cout<<"Before cartesian constraint..."<<std::endl;
 
-        // lb.block(6,0,3,1) = dxr_t - x_desired.block(3,0,3,1)*1;
-        // A.block(6,0,3,7) = J_geom_t;
-        // ub.block(6,0,3,1) = dxr_t + x_desired.block(3,0,3,1)*1;
-        lb.block(6,0,3,1).setZero();
-        A.block(6,0,3,7).setZero();
-        ub.block(6,0,3,1).setZero();
+        lb.block(6,0,3,1) = dxr_t - x_desired.block(3,0,3,1)*1;
+        A.block(6,0,3,7) = J_geom_t;
+        ub.block(6,0,3,1) = dxr_t + x_desired.block(3,0,3,1)*1;
+        // lb.block(6,0,3,1).setZero();
+        // A.block(6,0,3,7).setZero();
+        // ub.block(6,0,3,1).setZero();
 
         // MatrixXd lower = (dxr_t - x_desired.block(3,0,3,1));
         // MatrixXd upper = (dxr_t + x_desired.block(3,0,3,1));
@@ -384,12 +384,12 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
         // + D_cart * (dx.block(0,0,3,1) - dx_last.block(0,0,3,1));
 
         // 3. prioritize manip tracking of one axis
-        // lb.block(9,0,1,1) = M_diff_axis;
-        // A.block(9,0,1,7) = Jm_t_axis;
-        // ub.block(9,0,1,1) = M_diff_axis;
-        lb.block(9,0,1,1).setZero();
-        A.block(9,0,1,7).setZero();
-        ub.block(9,0,1,1).setZero();
+        lb.block(9,0,1,1) = M_diff_axis;
+        A.block(9,0,1,7) = Jm_t_axis;
+        ub.block(9,0,1,1) = M_diff_axis;
+        // lb.block(9,0,1,1).setZero();
+        // A.block(9,0,1,7).setZero();
+        // ub.block(9,0,1,1).setZero();
 
         // Bounds /////////////////////////////////////////////////////
         // a. Regarding joint position (tested):
