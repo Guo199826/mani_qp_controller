@@ -135,7 +135,7 @@ bool ManiQpController::init(hardware_interface::RobotHW* robot_hardware,
   F_ext_fil_last.setZero();
 
   // get joint angle trajectory from csv
-  std::string path ="/home/gari/mani_tracking_test_orig/src/mani_qp_controller/data/csv/joint_position_real_guid_task_1108.csv";
+  std::string path ="/home/gari/mani_tracking_test_orig/src/mani_qp_controller/data/csv/joint_position_real_guid_task_1120_2.csv";
   // std::string path = "/home/gari/mani_check_before/src/mani_qp_controller/data/promp/q_position_mean_traj.csv";
   joint_states_csv_ = load_csv(path);
   // joint_states_csv = joint_states_csv_;
@@ -274,7 +274,7 @@ void ManiQpController::update(const ros::Time& /* time */,
   MatrixXd F_ext_fil;
   MatrixXd tau_ext_fil;
   double F_ext_threshold = 5;
-  std::array<double, 7> gravity_array = model_handle_->getGravity();;
+  std::array<double, 7> gravity_array = model_handle_->getGravity();
   Eigen::Map<Eigen::Matrix<double, 7, 1>> Gravity(gravity_array.data());
   std::array<double, 7> tau_ext_array = robot_state.tau_J;
   Eigen::Map<Eigen::Matrix<double, 7, 1>> tau_ext(tau_ext_array.data());
@@ -352,8 +352,8 @@ void ManiQpController::update(const ros::Time& /* time */,
 
   Eigen::Matrix<double, 7, 1> q_desired;
   // q_desired << -0.3, -0.5, -0.00208172, -2, -0.00172665, 1.57002, 0.794316;
-  // size_t rosbag_counter = i/10;
-  size_t rosbag_counter = i/1000;
+  size_t rosbag_counter = i/10;
+  // size_t rosbag_counter = i/1000;
 
   // std::cout<<"counter: "<<rosbag_counter<<std::endl;
   q_desired = joint_states_csv_.col(rosbag_counter);
