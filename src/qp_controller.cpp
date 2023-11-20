@@ -28,9 +28,9 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
 
     // Matrix<c_float, 7, 7> K_qp = K_qp_vec.asDiagonal();
     // c_float K_qp = 0.001; //for dyn Manip
-    c_float K_qp = 0.5; //for velocity Manip
+    c_float K_qp = 1; //for velocity Manip
     // c_float K_cart = 2;
-    c_float W = 0.5;
+    c_float W = 3;
     Matrix<c_float, 8, 8> W_cart;
     Matrix<c_float, 8, 8> K_cart;
     c_float D_cart = 50;
@@ -384,12 +384,12 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
         // + D_cart * (dx.block(0,0,3,1) - dx_last.block(0,0,3,1));
 
         // 3. prioritize manip tracking of one axis
-        lb.block(9,0,1,1) = M_diff_axis;
-        A.block(9,0,1,7) = Jm_t_axis;
-        ub.block(9,0,1,1) = M_diff_axis;
-        // lb.block(9,0,1,1).setZero();
-        // A.block(9,0,1,7).setZero();
-        // ub.block(9,0,1,1).setZero();
+        // lb.block(9,0,1,1) = M_diff_axis;
+        // A.block(9,0,1,7) = Jm_t_axis;
+        // ub.block(9,0,1,1) = M_diff_axis;
+        lb.block(9,0,1,1).setZero();
+        A.block(9,0,1,7).setZero();
+        ub.block(9,0,1,1).setZero();
 
         // Bounds /////////////////////////////////////////////////////
         // a. Regarding joint position (tested):
