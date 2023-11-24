@@ -31,6 +31,7 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
     ///////////////////////////////////////////////////////////////////
     Matrix<double,7,1> q_goal;
     q_goal = q_desired;
+    q_goal(6) = 0.7945;
     // using std::chrono::high_resolution_clock;
     // using std::chrono::duration;
     // using std::chrono::milliseconds;

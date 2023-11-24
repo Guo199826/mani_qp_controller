@@ -135,7 +135,9 @@ bool ManiQpController::init(hardware_interface::RobotHW* robot_hardware,
   F_ext_fil_last.setZero();
 
   // get joint angle trajectory from csv
-  std::string path ="/home/gari/mani_tracking_test_orig/src/mani_qp_controller/data/csv/joint_position_real_guid_task_1120_2.csv";
+  // std::string path ="/home/gari/mani_tracking_test_orig/src/mani_qp_controller/data/csv/joint_position_real_guid_task_1120_2.csv";
+  std::string path ="/home/gari/mani_tracking_test_orig/src/mani_qp_controller/data/csv/joint_position_1124_6.csv";
+
   // std::string path = "/home/gari/mani_check_before/src/mani_qp_controller/data/promp/q_position_mean_traj.csv";
   joint_states_csv_ = load_csv(path);
   // joint_states_csv = joint_states_csv_;
@@ -370,6 +372,7 @@ void ManiQpController::update(const ros::Time& /* time */,
   // std::cout<<"J_franka: "<< std::endl<<J_franka_<<std::endl;
 
   dq_mod = qp_controller(q, dq, counter, q_desired, x_desired, F_Inter, dx, dx_last, tau_Inter);
+  dq_mod(6)=0.0;
   F_ext_fil_last = F_ext_fil;
   tau_ext_fil_last = tau_ext_fil;
   dx_last = dx;
