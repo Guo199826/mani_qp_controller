@@ -371,7 +371,7 @@ void ManiQpController::update(const ros::Time& /* time */,
   // J_franka_.block(3,0,3,7) = J_franka.block(0,0,3,7);
   // std::cout<<"J_franka: "<< std::endl<<J_franka_<<std::endl;
 
-  dq_mod = qp_controller(q, dq, counter, q_desired, x_desired, F_Inter, dx, dx_last, tau_Inter);
+  dq_mod = qp_controller(q, dq, i, q_desired, x_desired, F_Inter, dx, dx_last, tau_Inter);
   dq_mod(6)=0.0;
   F_ext_fil_last = F_ext_fil;
   tau_ext_fil_last = tau_ext_fil;

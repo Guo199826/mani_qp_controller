@@ -54,8 +54,10 @@ Prerequisites:
 using namespace Eigen;
 using namespace DQ_robotics;
 
+// Matrix<double,7,1> dq_res_1_last;
+
 VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &dq_, 
-                        Index &counter, const Matrix<double,7,1> &q_desired,
+                        size_t &counter, const Matrix<double,7,1> &q_desired,
                         const Matrix<double,3,1> &x_desired, const MatrixXd &F_ext,
                         const MatrixXd &dx, const MatrixXd &dx_last,
                         const MatrixXd &tau_ext);

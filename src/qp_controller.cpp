@@ -4,15 +4,17 @@
 #include "../include/qp_controller.h"
 
 VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &dq_, 
-                        Index &counter, const Matrix<double,7,1> &q_desired,
+                        size_t &counter, const Matrix<double,7,1> &q_desired,
                         const Matrix<double,3,1> &x_desired, const MatrixXd &F_ext,
                         const MatrixXd &dx, const MatrixXd &dx_last,
                         const MatrixXd &tau_ext)
 {
     // Gain Tunning //////////////////////////////////////////////////
-    c_float K_qp = 1; // for cost function
+    c_float K_qp = 0.5; // for cost function
     c_float K_dx = 1; // for cartesian tracking
     c_float K_sing = 1; // for min. eigenvalue
+    c_float w_r = 1; // for cost function
+    c_float w_t = 4; // for cost function
     Matrix<double, 6, 6> K_adm;
     // Matrix<double, 7, 7> K_adm;
     Matrix<double, 6, 1> K_adm_vec;
@@ -76,33 +78,54 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
     // Desired cartesian and manipulability pos/trajectory
     MatrixXd J_goal;
     MatrixXd J_geom_goal;
+    MatrixXd J_geom_goal_r;
+    MatrixXd J_geom_goal_t;
     MatrixXd Me_d;
+    MatrixXd Me_d_r;
+    MatrixXd Me_d_t;
     MatrixXd Me_d_axis;
     MatrixXd Me_ct_axis;
     MatrixXd M_diff_axis;
     Matrix<double, 1, 7> J_geom_goal_axis;
     J_goal = robot.pose_jacobian(q_goal);
     J_geom_goal = geomJac(robot, J_goal, q_goal, n);
+    J_geom_goal_r = J_geom_goal.block(0,0,3,7);
+    J_geom_goal_t = J_geom_goal.block(3,0,3,7);
     J_geom_goal_axis = J_geom_goal.row(3); // translation in x as primary tracking object
     Me_d_axis = J_geom_goal_axis*J_geom_goal_axis.transpose();
     Me_d = J_geom_goal*J_geom_goal.transpose();
+    Me_d_r = J_geom_goal_r*J_geom_goal_r.transpose();
+    Me_d_t = J_geom_goal_t*J_geom_goal_t.transpose();
 
     // Initialization dq q_track M ev_diff
     Matrix<double,7,1> dq_res_1;
+    Matrix<double,7,1> dq_res_1_fil;
+    
     Matrix<double,7,1> dq_res;
     MatrixXd J;
     MatrixXd J_geom;
     MatrixXd J_geom_t;
+    MatrixXd J_geom_r;
     MatrixXd J_geom_t_axis;
     MatrixXd Me_ct(m,m);
+    MatrixXd Me_ct_r(3,3);
+    MatrixXd Me_ct_t(3,3);
     Tensor<double, 3> Me_track(m,m,nbIter);
     Tensor<double, 3> J_grad(m,n,n);
+    Tensor<double, 3> J_grad_t(3,n,n);
+    Tensor<double, 3> J_grad_r(3,n,n);
     Tensor<double, 3> J_grad_axis(1,n,n);
     Tensor<double, 3> Jm_t_axis_;
     MatrixXd Jm_t;
+    MatrixXd Jm_t_t;
+    MatrixXd Jm_t_r;
     MatrixXd Jm_t_axis;
     MatrixXd M_diff(m,m);
+    MatrixXd M_diff_r(3,3);
+    MatrixXd M_diff_t(3,3);
     VectorXd vec_M_diff(21);
+    VectorXd vec_M_diff_r(6);
+    VectorXd vec_M_diff_t(6);
     Matrix<double, 6, 1> ev_t;
     MatrixXd ev_diff;
     BDCSVD<MatrixXd> singularsolver;
@@ -112,6 +135,8 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
     SparseMatrix<c_float> A_2_s;
     Matrix<double, 7, 7> I;
     I.setIdentity();
+    Matrix<double, 3, 1> I_3;
+    I_3.setIdentity();
     Matrix<double, 7, 6> I_76;
     I_76.setIdentity();
     // equality constraint right part
@@ -135,12 +160,15 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
         // Obtain the current analytical Jacobian, geom J and M 
         J = robot.pose_jacobian(qt);
         J_geom = geomJac(robot, J, qt, n); 
+        J_geom_r = J_geom.block(0, 0, 3, n); 
         J_geom_t = J_geom.block(3, 0, 3, n); 
         J_geom_t_axis = J_geom_t.row(0); // translation in x as primary tracking object
         // std::cout<<"----------J_geom_t: "<<std::endl<<J_geom_t<<std::endl;
         // std::cout<<"----------J_geom_t_axis: "<<std::endl<<J_geom_t_axis<<std::endl;
         // Current Mani and Record Me_ct into Me_track
         Me_ct = J_geom*J_geom.transpose();
+        Me_ct_r = J_geom_r*J_geom_r.transpose();
+        Me_ct_t = J_geom_t*J_geom_t.transpose();
         Me_ct_axis = J_geom_t_axis*J_geom_t_axis.transpose();
         array<DenseIndex, 3> offset = {0, 0, i};
         array<DenseIndex, 3> extent = {m, m, 1};
@@ -164,20 +192,33 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
         // }
 
         J_grad = jacobianEst(qt, n, robot);
+        array<DenseIndex, 3> offset_r = {0, 0, 0}; // translation in x
+        array<DenseIndex, 3> extent_r = {3, 7, 7};
+        J_grad_r = J_grad.slice(offset_r, extent_r);
+        array<DenseIndex, 3> offset_t = {3, 0, 0}; // translation in x
+        array<DenseIndex, 3> extent_t = {3, 7, 7};
+        J_grad_t = J_grad.slice(offset_t, extent_t);
+
         array<DenseIndex, 3> offset_axis = {3, 0, 0}; // translation in x
         array<DenseIndex, 3> extent_axis = {1, 7, 7};
         J_grad_axis = J_grad.slice(offset_axis, extent_axis);
         // Compute manipulability Jacobian (red to matrix)
         Jm_t = redManipulabilityJacobian(J_geom, J_grad);
+        Jm_t_t = redManipulabilityJacobian_3(J_geom_t, J_grad_t);
+        Jm_t_r = redManipulabilityJacobian_3(J_geom_r, J_grad_r);
         Jm_t_axis_ = manipulabilityJacobian(J_geom_t_axis, J_grad_axis);
         Jm_t_axis = Map<MatrixXd> (Jm_t_axis_.data(), 1, 7);
         // std::cout<<"Jm_t_axis_: "<<std::endl<<Jm_t_axis_ <<std::endl;
 
         // Compute distance to desired manipulybility 
         M_diff = logmap(Me_d, Me_ct); // 6x6
+        M_diff_r = logmap(Me_d_r, Me_ct_r); // 3x3
+        M_diff_t = logmap(Me_d_t, Me_ct_t); // 3x3
         M_diff_axis = logmap(Me_d_axis, Me_ct_axis); // 1
 
         vec_M_diff = spd2vec_vec(M_diff); // 21x1
+        vec_M_diff_r = spd2vec_vec(M_diff_r); // 21x1
+        vec_M_diff_t = spd2vec_vec(M_diff_t); // 21x1
         // std::cout<<"M_diff: "<<std::endl<<M_diff<<std::endl;
         // std::cout<<"M_diff_axis: "<<std::endl<<M_diff_axis<<std::endl;
         // std::cout<<"vec_M_diff: "<<std::endl<<vec_M_diff<<std::endl;
@@ -321,18 +362,33 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
         
         // dq_res = solver.getSolution();
         dq_res_1 = solver.getSolution();
+        // Filter the dq from first QP layer
+        // double Ts = 0.001;
+        // double fc = 1;
+        // double a = 2 * 3.14 * fc * Ts / (2 * 3.14 * fc * Ts + 1);
 
+        // if (counter == 0){
+        //     dq_res_1_fil = dq_res_1;
+        //     //F_ext_fil = tau_ext_hat_filtered;
+        //     dq_res_1_last.setZero();
+        // }
+        // else{
+        //     dq_res_1_fil = dq_res_1_last + a * (dq_res_1 - dq_res_1_last);
+        // }
+        // dq_res_1_last = dq_res_1_fil;
         ///////////////////////////////////////////////////////////////////////////////////////////        
         //// Second QP ////////////////////////////////////////////////////////////////////////////
         // Cost Function: Hessian matrix H and Gradient f
         // velocity from 
-        Matrix<c_float, 7, 7> H_2 = Jm_t.transpose()*Jm_t;
+        // Matrix<c_float, 7, 7> H_2 = Jm_t.transpose()*Jm_t;
+        Matrix<c_float, 7, 7> H_2 = w_r* Jm_t_r.transpose()*Jm_t_r + w_t* Jm_t_t.transpose()*Jm_t_t;
         H_2_s = H_2.sparseView();
         // std::cout<<"H: "<<std::endl<<H<<std::endl;
         H_2_s.pruned(1e-9); // set those who smaller than 0.01 as zero
         // std::cout<<"H_S : "<<std::endl<<H_s<<std::endl;
         // Matrix<c_float, 1, 7> f = -0*K_qp* vec_M_diff.transpose()*Jm_t - 2*admittance_signal.transpose()*J_geom;
-        Matrix<c_float, 1, 7> f_2 = -K_qp* vec_M_diff.transpose()*Jm_t; // 
+        // Matrix<c_float, 1, 7> f_2 = -K_qp* vec_M_diff.transpose()*Jm_t; // 
+        Matrix<c_float, 1, 7> f_2 = -K_qp* (w_r* vec_M_diff_r.transpose()*Jm_t_r + w_t* vec_M_diff_t.transpose()*Jm_t_t); // 
 
         // Initialize matrices for constraints
         Matrix<c_float, 33, 1> lb_2;
@@ -390,6 +446,11 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
         lb_2.block(26,0,7,1).setZero();
         A_2.block(26,0,7,7).setZero();
         ub_2.block(26,0,7,1).setZero();
+        // Cartesian constraint
+        // dxr = (x_desired - xt_t) * K_dx;
+        // lb_2.block(33,0,3,1) = dxr - 0.1*I_3; 
+        // A_2.block(33,0,3,7) = J_geom_t;
+        // ub_2.block(33,0,3,1) = dxr + 0.1*I_3;
         // --------------------------------------------------------------------
         
         A_2_s = A_2.sparseView();
@@ -410,7 +471,7 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
 
         dq_res = solver_2.getSolution();
         ////////////////////////////////////////////////////////////////////////////////////////////
-        // std::cout<<"Solution dq_t: "<<std::endl<<dq_track.col(i).transpose()<<std::endl;
+        // std::cout<<"Solution dq_t: "<<std::endl<< dq_res.transpose() <<std::endl;
         
     }
     // std::cout << "Control finished..." << std::endl;
