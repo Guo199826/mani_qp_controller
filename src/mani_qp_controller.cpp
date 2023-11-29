@@ -117,17 +117,18 @@ bool ManiQpController::init(hardware_interface::RobotHW* robot_hardware,
   counter = 0;
   F_ext_fil_last.setZero();
   dx_last.setZero();
-
+  // std::cout<<"Before load csv+++++++++++++++++++++++++++++++++"<<std::endl;
   // get joint angle trajectory from csv
-  joint_states_csv_ = load_csv("/home/gari/mani_check_before/src/mani_qp_controller/data/promp/q_position_mean_traj.csv");
-  // joint_states_csv_ = load_csv("/home/gari/mani_tracking_test/src/mani_qp_controller/data/csv/joint_position_traj_0912_1.csv");
+  // joint_states_csv_ = load_csv("/home/gari/mani_check_before/src/mani_qp_controller/data/promp/q_position_mean_traj.csv");
+  joint_states_csv_ = load_csv("/home/gari/mani_tracking_test_orig/src/mani_qp_controller/data/csv/joint_position_1124_6.csv");
+  joint_states_csv_cart = load_csv("/home/gari/mani_tracking_test_orig/src/mani_qp_controller/data/csv/joint_position_real_guid_task_1120_2.csv");
   // joint_states_csv_ = load_csv("/home/gari/mani_check_before/src/mani_qp_controller/data/bags/joint_position_exam_force_traj.csv");
   // Input txt data (experiments data)
   // std::string path = "/home/gari/mani_check/src/mani_qp_controller/data/bags/csv/joint_configurations_Drill_1.csv";
   // joint_states_csv_ = load_csv(path);
   //////////////////////////////////////////////////////
-  col = joint_states_csv_.cols();
-  std::cout<<"col: " << col <<std::endl;
+  col = joint_states_csv_cart.cols();
+  std::cout<<"col: " << col <<"++++++++++++++++++++++++++++++++++++++++++++"<<std::endl;
 
 
   mean_traj = load_csv_3("/home/gari/mani_check_before/src/mani_qp_controller/data/promp/xtrans_mean_traj.csv");
@@ -149,19 +150,21 @@ bool ManiQpController::init(hardware_interface::RobotHW* robot_hardware,
   xt_mean_dq_traj.resize(8,col);
 
   for(size_t i=0; i<col; i++){
-      Eigen::Matrix<double, 7, 1> q = joint_states_csv_.col(i);
-      Eigen::Matrix<double, 3, 1> xt_mean = mean_traj.col(i);
-      Eigen::Matrix<double, 4, 1> trans;
-      trans(0) = 0;
-      trans.block(1,0,3,1) = xt_mean;
-      DQ xt_mean_t = DQ(trans);
+      Eigen::Matrix<double, 7, 1> q = joint_states_csv_cart.col(i);
+      // Eigen::Matrix<double, 3, 1> xt_mean = mean_traj.col(i);
+      // Eigen::Matrix<double, 4, 1> trans;
+      // trans(0) = 0;
+      // trans.block(1,0,3,1) = xt_mean;
+      // DQ xt_mean_t = DQ(trans);
       // std::cout<<"q assignmnt"<< q <<std::endl;
       // forward kinematic model
       DQ xt = robot.fkm(q);
       Eigen::Matrix<double,3,1> xt_t = xt.translation().vec3();
       DQ xt_r = xt.rotation();
-      DQ xt_mean_dq = xt_r + E_ * 0.5 * xt_mean_t * xt_r;
-      Eigen::Matrix<double, 8, 1> xt_indiv = vec8(xt_mean_dq);
+      // DQ xt_mean_dq = xt_r + E_ * 0.5 * xt_mean_t * xt_r;
+      // Eigen::Matrix<double, 8, 1> xt_indiv = vec8(xt_mean_dq);
+      Eigen::Matrix<double, 8, 1> xt_indiv = vec8(xt);
+
       xt_mean_dq_traj.col(i) = xt_indiv;
       x_t_traj_.col(i) = xt_t;
   }
@@ -255,8 +258,11 @@ void ManiQpController::update(const ros::Time& /* time */,
   offset_x<<0.08, 0.2, 0.1;
   // offset_x<<0, 0, 0;
 
-  x_desired.block(0,0,3,1) = mean_traj.col(rosbag_counter) + offset_x; 
-  x_desired.block(3,0,3,1) = sigma_traj_3.col(rosbag_counter); 
+  // x_desired.block(0,0,3,1) = mean_traj.col(rosbag_counter) + offset_x; 
+  x_desired.block(0,0,3,1) = x_t_traj_.col(rosbag_counter); 
+  // x_desired.block(3,0,3,1) = sigma_traj_3.col(rosbag_counter);
+  x_desired.block(3,0,3,1).setZero(); 
+
   Eigen::Matrix<double, 8, 1> xt_mean_full;
   xt_mean_full = xt_mean_dq_traj.col(rosbag_counter);
   // std::cout<<"q_desired: "<<q_desired.transpose()<<std::endl;

@@ -75,6 +75,8 @@ namespace mani_qp_controller {
 
     // matrix in which the data from csv go in
     Eigen::MatrixXd joint_states_csv_;
+    Eigen::MatrixXd joint_states_csv_cart;
+
     Eigen::MatrixXd xt_mean_dq_traj;
     Eigen::MatrixXd mean_traj;
     Eigen::MatrixXd sigma_traj_3;

@@ -30,7 +30,7 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
     // c_float K_qp = 0.001; //for dyn Manip
     c_float K_qp = 1; //for velocity Manip
     // c_float K_cart = 2;
-    c_float W = 3;
+    c_float W = 1;
     Matrix<c_float, 8, 8> W_cart;
     Matrix<c_float, 8, 8> K_cart;
     c_float D_cart = 50;
@@ -211,6 +211,8 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
     SparseMatrix<c_float> A_s;
     Matrix<double, 7, 7> I;
     I.setIdentity();
+    Matrix<double, 3, 1> I_3;
+    I_3.setIdentity();
 
     // std::cout << "Starting control loop-------------------------------------------------" << std::endl;
     // Main control loop //////////////////////////////////////////////////////////////////////////////
@@ -328,7 +330,7 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
         Matrix<c_float, 31, 7> A;
         Matrix<c_float, 31, 1> ub;
 
-        Matrix<c_float, 7, 7> H = 1*Jm_t.transpose()*Jm_t + J.transpose() * W_cart * J;
+        Matrix<c_float, 7, 7> H = 1*Jm_t.transpose()*Jm_t + 0*J.transpose() * W_cart * J;
         // Dyn. Manip.
         // Matrix<c_float, 7, 7> H = 1*Jm_dyn_t.transpose()*Jm_dyn_t + 0*J.transpose() * W_cart * J;
 
@@ -340,11 +342,13 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
 
         // For Experiment 1: add cartesian position offset
         // To showcase the manipulability adapting
-        Matrix<double, 3, 1> x_offset = x_desired.block(0,0,3,1);
-        DQ xt_offset_t = DQ(x_offset);
-        DQ xt_mean_r = DQ(xt_mean.block(0,0,4,1));
-        DQ xt_obj = xt_mean_r + E_ * 0.5 * xt_offset_t * xt_mean_r;
-        Matrix<c_float, 1, 7> f = -2*K_qp* vec_M_diff.transpose()*Jm_t - 2*(xt_obj.vec8() - xt.vec8()).transpose()* W_cart*K_cart *J;
+        // Matrix<double, 3, 1> x_offset = x_desired.block(0,0,3,1);
+        // DQ xt_offset_t = DQ(x_offset);
+        // DQ xt_mean_r = DQ(xt_mean.block(0,0,4,1));
+        // DQ xt_obj = xt_mean_r + E_ * 0.5 * xt_offset_t * xt_mean_r;
+        // Matrix<c_float, 1, 7> f = -2*K_qp* vec_M_diff.transpose()*Jm_t - 2*(xt_obj.vec8() - xt.vec8()).transpose()* W_cart*K_cart *J;
+        Matrix<c_float, 1, 7> f = -2*K_qp* vec_M_diff.transpose()*Jm_t - 0*(xt_mean - xt.vec8()).transpose()* W_cart*K_cart *J;
+
         // Dyn. Manip.
         // Matrix<c_float, 1, 7> f = -2* vec_M_dyn_diff.transpose()*Jm_dyn_t *K_qp - 0*2*(xt_obj.vec8() - xt.vec8()).transpose()* W_cart*K_cart *J;
 
@@ -368,12 +372,12 @@ VectorXd qp_controller(const Matrix<double,7,1> &q_, const Matrix<double,7,1> &d
         // dxr_t = -vec3(xt.translation() - xd.translation());
         // std::cout<<"Before cartesian constraint..."<<std::endl;
 
-        lb.block(6,0,3,1) = dxr_t - x_desired.block(3,0,3,1)*1;
-        A.block(6,0,3,7) = J_geom_t;
-        ub.block(6,0,3,1) = dxr_t + x_desired.block(3,0,3,1)*1;
-        // lb.block(6,0,3,1).setZero();
-        // A.block(6,0,3,7).setZero();
-        // ub.block(6,0,3,1).setZero();
+        // lb.block(6,0,3,1) = dxr_t - I_3*0.5;
+        // A.block(6,0,3,7) = J_geom_t;
+        // ub.block(6,0,3,1) = dxr_t + I_3*0.5;
+        lb.block(6,0,3,1).setZero();
+        A.block(6,0,3,7).setZero();
+        ub.block(6,0,3,1).setZero();
 
         // MatrixXd lower = (dxr_t - x_desired.block(3,0,3,1));
         // MatrixXd upper = (dxr_t + x_desired.block(3,0,3,1));

@@ -14,6 +14,6 @@
 # rostopic echo -b joint_position_1102.bag -p /franka_state_controller/joint_position > joint_position_1102.csv
 # rostopic echo -b joint_velocity_1102.bag -p /franka_state_controller/joint_velocity > joint_velocity_1102.csv
 
-rostopic echo -b joint_position_real_offset_1107.bag -p /franka_state_controller/joint_position > joint_position_real_offset_strict_s1_1_1107.csv
-rostopic echo -b joint_velocity_real_offset_1107.bag -p /franka_state_controller/joint_velocity > joint_velocity_real_offset_strict_s1_1_1107.csv
+rostopic echo -b joint_position_real_elbow_1.bag -p /franka_state_controller/joint_position > joint_position_real_elbow_1.csv
+rostopic echo -b joint_velocity_real_elbow_1.bag -p /franka_state_controller/joint_velocity > joint_velocity_real_elbow_1.csv
 
